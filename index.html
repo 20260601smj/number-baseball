@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>4S 숫자야구</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 야구장 수동 전광판 — 위에 선수 명단, 가운데 상황판과 키패드, 아래 경기 기록 */
+:root{
+  --board:#10291b; --panel:#173825; --line:#2b5a3f; --chalk:#f3eedb; --dim:#9cb8a5;
+  --ball:#43d36f; --strike:#ffc23d; --out:#ff5d4d;
+  --f-display:"Black Han Sans","IBM Plex Sans KR",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  --f-num:"Chakra Petch","Consolas",ui-monospace,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--board);color:var(--chalk)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:720px;margin:0 auto;display:grid;gap:18px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:400;font-size:32px;margin:0;letter-spacing:.02em;text-wrap:balance}
+h1 b{color:var(--strike);font-family:var(--f-num);font-weight:700}
+.sub{color:var(--dim);font-size:13px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;min-width:0}
+.panel h2{font-family:var(--f-display);font-weight:400;font-size:19px;margin:0}
+label{font-size:13px;color:var(--dim);display:grid;gap:4px}
+input[type=text]{font:inherit;font-size:16px;background:var(--board);color:var(--chalk);border:1px solid var(--line);border-radius:4px;padding:9px 11px;min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>input{flex:1 1 140px}
+.between{justify-content:space-between}
+button{font:inherit;font-weight:600;cursor:pointer;border-radius:4px;border:1px solid var(--line);background:var(--board);color:var(--chalk);padding:9px 14px}
+button.go{background:var(--strike);color:#1d1600;border-color:var(--strike)}
+button:disabled{opacity:.35;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--strike);outline-offset:2px}
+.note{font-size:13px;color:var(--dim);margin:0}
+.warn{color:var(--out)}
+.rules{margin:0;padding-left:18px;color:var(--dim);font-size:13px;display:grid;gap:2px}
+.code{font-family:var(--f-num);font-size:30px;letter-spacing:.25em;color:var(--strike)}
+/* 선수 명단 */
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.player{background:var(--board);border:1px solid var(--line);border-radius:4px;padding:8px 10px;display:grid;gap:2px;min-width:0}
+.player.turn{border-color:var(--strike)}
+.player.outp{opacity:.55}
+.player .pn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player .pn small{font-family:var(--f-num);color:var(--dim);margin-right:6px}
+.player .ps{font-size:12px;color:var(--dim)}
+.player.turn .ps{color:var(--strike)}
+.player.outp .ps{color:var(--out)}
+/* 볼카운트 램프 (혼자 연습) */
+.count{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;font-family:var(--f-num);font-weight:700}
+.lamps{display:flex;gap:7px}
+.lamp{width:18px;height:18px;border-radius:50%;background:#0b1d13;border:1px solid var(--line)}
+.lamp.s.on{background:var(--strike);box-shadow:0 0 10px var(--strike)}
+.lamp.b.on{background:var(--ball);box-shadow:0 0 10px var(--ball)}
+.lamp.o.on{background:var(--out);box-shadow:0 0 10px var(--out)}
+.status{font-family:var(--f-display);font-size:22px;text-align:center;padding:6px 0;text-wrap:balance}
+.status.win{color:var(--strike)} .status.lose{color:var(--out)}
+/* 입력칸 + 키패드 */
+.slots{display:flex;gap:8px;justify-content:center}
+.slot{width:54px;height:64px;display:grid;place-items:center;background:#0b1d13;border:1px solid var(--line);border-radius:4px;font-family:var(--f-num);font-size:36px;font-weight:700;color:var(--chalk)}
+.slot.cur{border-color:var(--strike)}
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-width:380px;margin:12px auto 0;width:100%}
+.pad button{font-family:var(--f-num);font-size:22px;padding:10px 0}
+.pad .wide{grid-column:span 2;font-family:var(--f-body);font-size:15px}
+.pad .del{font-family:var(--f-body);font-size:15px}
+/* 경기 기록 */
+.log h3{font-size:13px;color:var(--dim);margin:0;font-weight:600}
+.log ol{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-variant-numeric:tabular-nums}
+.log li{display:grid;grid-template-columns:30px minmax(0,7em) auto 1fr;gap:4px 10px;align-items:baseline;padding:6px 8px;background:var(--board);border-radius:3px}
+@media (max-width:480px){.log li{grid-template-columns:30px minmax(0,1fr) auto}.log li .res{grid-column:2 / -1}}
+.log .n{color:var(--dim);font-family:var(--f-num)}
+.log .who{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.log .g{letter-spacing:.18em;font-weight:700;font-family:var(--f-num)}
+.log .res{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px}
+.log .res span.t{color:var(--dim)}
+.r .s,.res .s{color:var(--strike);font-family:var(--f-num)} .r .b,.res .b{color:var(--ball);font-family:var(--f-num)} .r .o,.res .o{color:var(--out);font-family:var(--f-num)}
+.log .empty{color:var(--dim);font-size:13px;background:none;display:block;padding:0}
+.log li.mine{outline:1px solid var(--line)}
+@media (prefers-reduced-motion:no-preference){.lamp{transition:background .2s,box-shadow .2s}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header>
+    <h1>숫자야구 <b>4S</b></h1>
+    <span class="sub" id="who"></span>
+  </header>
+
+  <!-- 로비 -->
+  <section id="lobby" class="panel">
+    <h2>플레이볼</h2>
+    <label for="nick">내 이름
+      <input id="nick" type="text" maxlength="12" placeholder="이름 또는 별명" autocomplete="off">
+    </label>
+    <div class="row">
+      <button id="btnCreate" class="go">방 만들기</button>
+      <button id="btnSolo">혼자 연습</button>
+    </div>
+    <div class="row">
+      <input id="joinCode" type="text" maxlength="4" placeholder="친구가 알려준 방 코드 4자리" autocomplete="off">
+      <button id="btnJoin">입장</button>
+    </div>
+    <div class="row" id="resumeRow" hidden><button id="btnResume">이어서 하기</button><span class="note" id="resumeNote"></span></div>
+    <p class="note" id="netNote">온라인 연결 확인 중…</p>
+    <ul class="rules">
+      <li>2~4명이 함께합니다. 각자 0~9 중 서로 다른 숫자 4개로 비밀 숫자를 정합니다 (0으로 시작해도 됨).</li>
+      <li>순서대로 숫자 하나를 부르면, 남아 있는 상대 모두의 숫자에 대해 각각 판정이 나옵니다. 숫자·자리 맞으면 S, 숫자만 맞으면 B, 하나도 없으면 OUT.</li>
+      <li>누군가 내 숫자를 4S로 맞히면 그 회가 끝날 때 탈락합니다. 그 회에 내 차례가 남아 있으면 마지막 한 번은 던질 수 있어요.</li>
+      <li>마지막까지 살아남은 한 명이 승리. 남은 사람이 같은 회에 모두 탈락하면 무승부.</li>
+    </ul>
+  </section>
+
+  <!-- 게임 -->
+  <section id="game" class="wrap" hidden>
+    <div class="panel">
+      <div class="row between">
+        <div><div class="note" id="modeLabel">방 코드</div><div class="code" id="codeView"></div></div>
+        <div class="row">
+          <button id="btnCopy">코드 복사</button>
+          <button id="btnLeave">나가기</button>
+        </div>
+      </div>
+      <div class="roster" id="roster"></div>
+      <p class="note" id="roomNote"></p>
+      <div class="row" id="startRow" hidden><button class="go" id="btnStart">게임 시작</button><span class="note" id="startNote"></span></div>
+    </div>
+
+    <div class="panel">
+      <div class="status" id="status">상대를 기다리는 중</div>
+      <div class="count" id="countBox" hidden>
+        <span>S</span><div class="lamps" id="lampS"></div>
+        <span>B</span><div class="lamps" id="lampB"></div>
+        <span>O</span><div class="lamps" id="lampO"></div>
+      </div>
+      <div id="entry" hidden>
+        <div class="slots" id="slots"></div>
+        <div class="pad" id="pad"></div>
+      </div>
+      <p class="note" id="secretNote" style="text-align:center" hidden></p>
+      <div class="row" style="justify-content:center" id="againRow" hidden><button class="go" id="btnAgain">한 판 더</button></div>
+    </div>
+
+    <div class="panel log">
+      <h3>경기 기록</h3>
+      <ol id="log"></ol>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const MAX = 4;
+  const CODE_CHARS = "abcdefghjkmnpqrstuvwxyz23456789";
+  const LS = {
+    get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  };
+  const rid = n => { let c = ""; for (let i=0;i<n;i++) c += CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]; return c; };
+
+  // ── 판정 (순수 함수) ──
+  function judge(secret, guess){
+    let s = 0, b = 0;
+    for (let i = 0; i < 4; i++){
+      if (guess[i] === secret[i]) s++;
+      else if (secret.includes(guess[i])) b++;
+    }
+    return [s, b];
+  }
+  const valid = g => typeof g === "string" && /^\d{4}$/.test(g) && new Set(g).size === 4;
+  function shuffle(a){ a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  const randomSecret = () => shuffle("0123456789".split("")).slice(0,4).join("");
+  const fmt = r => (!r ? "" : (r[0]===0 && r[1]===0) ? '<span class="o">OUT</span>'
+    : `<span class="s">${r[0]}S</span> <span class="b">${r[1]}B</span>`);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  /* 경기 진행을 모두의 presence에서 똑같이 다시 계산한다(순수 함수).
+     회 r마다: 회 시작 때 살아 있던 사람이 순서대로 한 번씩 던진다.
+     던진 숫자는 '아직 이번 회에 안 맞은' 남은 상대 전원에게 판정받는다.
+     4S 맞은 사람은 회가 끝날 때 탈락(그 회에 차례가 남았으면 마지막 기회). */
+  function simulate(order, byPid){
+    let alive = order.slice();
+    const rows = [];
+    for (let r = 0; r < 300; r++){
+      const part = alive.slice();
+      const cracked = new Set();
+      for (const P of part){
+        const targets = part.filter(t => t !== P && !cracked.has(t));
+        if (!targets.length) continue;
+        const g = byPid[P] && Array.isArray(byPid[P].guesses) ? byPid[P].guesses[r] : null;
+        if (!valid(g)) return { state: "turn", who: P, round: r, rows, alive: part, cracked };
+        const res = [];
+        for (const T of targets){
+          const rep = byPid[T] && byPid[T].replies && byPid[T].replies[P] ? byPid[T].replies[P][r] : null;
+          if (!Array.isArray(rep)){ rows.push({ r, P, g, res, waitOn: T }); return { state: "judge", who: P, wait: T, round: r, rows, alive: part, cracked }; }
+          res.push([T, rep]);
+          if (rep[0] === 4) cracked.add(T);
+        }
+        rows.push({ r, P, g, res });
+      }
+      alive = alive.filter(x => !cracked.has(x));
+      if (alive.length <= 1) return { state: "over", winner: alive[0] || null, draw: alive.length ? [] : part, rows, alive, cracked: new Set() };
+    }
+    return { state: "over", winner: null, draw: alive, rows, alive, cracked: new Set() };
+  }
+
+  // ── 상태 ──
+  let mode = "lobby";             // lobby | online | solo
+  let pid = null, code = null;
+  let st = null;                  // 이 방에서의 내 상태 {game, secret, guesses, replies}
+  let peers = [];                 // 이 방의 다른 사람 presence (v:2)
+  const names = {};
+  let solo = null, entry = "";
+
+  const savedNick = LS.get("nb4:nick"); if (savedNick) $("nick").value = savedNick;
+  const last = LS.get("nb4:last2");
+  if (last && last.code && LS.get(`nb4:${last.code}:${last.pid}`)){ $("resumeRow").hidden = false; $("resumeNote").textContent = "방 " + last.code.toUpperCase(); }
+  function nick(){ const n = $("nick").value.trim().slice(0,12); LS.set("nb4:nick", n); return n || "익명"; }
+  function save(){ if (st) LS.set(`nb4:${code}:${pid}`, st); }
+
+  /* ── 네트워크: PeerJS(브라우저끼리 직접 연결) ──
+     방장 브라우저가 "nb4s-코드" 이름으로 대기하고, 친구들은 거기에 붙는다.
+     각자 자기 상태를 방장에게 보내고, 방장이 모두의 상태를 묶어 다시 뿌린다. */
+  const net = { peer: null, host: false, conns: new Map(), pres: {}, hostConn: null };
+  const netMsg = (t, warn) => { $("netNote").textContent = t; $("netNote").className = "note" + (warn ? " warn" : ""); };
+  function netStart(c, asHost){
+    return new Promise((resolve, reject) => {
+      const id = "nb4s-" + c;
+      let done = false;
+      const fin = e => { if (done) return; done = true; e ? reject(e) : resolve(); };
+      setTimeout(() => fin({ type: "timeout" }), 15000);
+      if (asHost){
+        const p = new Peer(id); net.peer = p; net.host = true;
+        p.on("open", () => fin());
+        p.on("connection", conn => {
+          conn.on("data", d => {
+            if (d && d.t === "p" && d.p && typeof d.p.pid === "string"){ net.conns.set(conn.peer, conn); net.pres[conn.peer] = d.p; relay(); }
+          });
+          conn.on("close", () => { net.conns.delete(conn.peer); delete net.pres[conn.peer]; relay(); });
+        });
+        p.on("disconnected", () => { try { p.reconnect(); } catch {} });
+        p.on("error", e => fin(e));
+      } else {
+        const p = new Peer(); net.peer = p; net.host = false;
+        p.on("open", () => {
+          const conn = p.connect(id, { reliable: true }); net.hostConn = conn;
+          conn.on("open", () => { fin(); push(); });
+          conn.on("data", d => {
+            if (d && d.t === "all" && Array.isArray(d.list)){
+              peers = d.list.filter(x => x && typeof x.pid === "string" && x.pid !== pid); sync();
+            }
+          });
+          conn.on("close", () => { if (mode === "online") $("roomNote").textContent = "방장과 연결이 끊겼어요. 나가기 후 같은 코드로 다시 들어오면 이어집니다."; });
+        });
+        p.on("error", e => { if (!done) fin(e); else if (mode === "online") $("roomNote").textContent = "연결 오류가 났어요. 나가기 후 다시 들어와 주세요."; });
+      }
+    });
+  }
+  function netStop(){
+    try { if (net.peer) net.peer.destroy(); } catch {}
+    net.peer = null; net.hostConn = null; net.conns = new Map(); net.pres = {};
+  }
+  function broadcast(){
+    const list = [{ v: 2, ...myPres() }, ...Object.values(net.pres)];
+    for (const c of net.conns.values()) if (c.open) c.send({ t: "all", list });
+  }
+  function relay(){ // 방장만: 누가 바뀌면 모두에게 뿌리고 내 화면도 갱신
+    broadcast();
+    peers = Object.values(net.pres).filter(x => x.pid !== pid);
+    sync();
+  }
+
+  async function enterRoom(c, resumePid, asHost){
+    c = (c || "").toLowerCase();
+    if (!/^[a-z0-9]{4}$/.test(c)){ netMsg("방 코드는 4자리입니다.", true); return; }
+    if (!window.Peer){ netMsg("온라인 연결 도구를 못 불러왔어요. 인터넷 연결을 확인하고 새로고침해 주세요.", true); return; }
+    ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = true);
+    netMsg(asHost ? "방 여는 중…" : "방에 들어가는 중…");
+    let ok = false;
+    for (let tries = 0; tries < (asHost ? 5 : 1) && !ok; tries++){
+      try { await netStart(c, asHost); ok = true; }
+      catch (e){
+        netStop();
+        if (asHost && e && e.type === "unavailable-id"){
+          if (resumePid){ netMsg("방을 다시 여는 중… (잠시 기다려 주세요)"); await new Promise(r => setTimeout(r, 3000)); }
+          else c = rid(4);
+        } else {
+          netMsg(e && e.type === "peer-unavailable" ? "그 코드의 방이 없어요. 코드를 확인하거나 방장에게 방이 열려 있는지 물어보세요."
+            : "연결하지 못했어요. 잠시 뒤 다시 눌러 주세요.", true);
+          break;
+        }
+      }
+    }
+    ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = false);
+    if (!ok){ if (asHost) netMsg("방을 열지 못했어요. 잠시 뒤 다시 눌러 주세요.", true); return; }
+    netMsg("");
+    code = c; pid = resumePid || rid(8);
+    st = LS.get(`nb4:${code}:${pid}`) || { game: null, secret: "", guesses: [], replies: {} };
+    names[pid] = nick();
+    mode = "online"; peers = []; entry = "";
+    LS.set("nb4:last2", { code, pid, host: asHost }); save();
+    push(); sync();
+  }
+  function push(){
+    if (!net.peer || !st) return;
+    if (net.host) broadcast();
+    else if (net.hostConn && net.hostConn.open) net.hostConn.send({ t: "p", p: { v: 2, ...myPres() } });
+  }
+  const myPres = () => ({ pid, nick: names[pid], host: net.host, game: st.game, set: !!st.secret, guesses: st.guesses, replies: st.replies });
+
+  // 다른 사람 상태가 바뀔 때마다: 최신 판 따라가기 + 남이 부른 숫자에 내 숫자로 판정해 답하기
+  function sync(){
+    if (mode !== "online") return;
+    let changed = false;
+    for (const p of peers) if (p.nick) names[p.pid] = String(p.nick).slice(0,12);
+    // 가장 최근에 시작된 판을 모두가 따른다
+    let newest = st.game;
+    for (const p of peers){
+      const g = p.game;
+      if (g && typeof g.id === "string" && Array.isArray(g.order) && typeof g.t === "number" && (!newest || g.t > newest.t)) newest = g;
+    }
+    if (newest && (!st.game || newest.id !== st.game.id)){
+      st.game = { id: newest.id, t: newest.t, order: newest.order.slice(0, MAX).filter(x => typeof x === "string") };
+      st.secret = ""; st.guesses = []; st.replies = {}; entry = ""; changed = true;
+    }
+    // 내 숫자로 판정 (비밀 숫자는 내 화면 밖으로 안 나간다. 결과만 보낸다)
+    if (st.game && st.secret && st.game.order.includes(pid)){
+      for (const p of peers){
+        if (!p.game || p.game.id !== st.game.id || !st.game.order.includes(p.pid) || !Array.isArray(p.guesses)) continue;
+        const mine = st.replies[p.pid] || [];
+        p.guesses.forEach((g, r) => { if (valid(g) && !Array.isArray(mine[r])){ mine[r] = judge(st.secret, g); changed = true; } });
+        st.replies[p.pid] = Array.from({ length: mine.length }, (_, i) => mine[i] || null);
+      }
+    }
+    if (changed){ save(); push(); }
+    show();
+  }
+
+  function view(){
+    const g = st.game;
+    const here = new Set(peers.map(p => p.pid)); here.add(pid);
+    const present = [pid, ...peers.map(p => p.pid)].filter((x, i, a) => a.indexOf(x) === i);
+    // 방장 = 방을 만든 사람(그 브라우저가 연결의 중심이라 나가면 방이 닫힌다)
+    const leader = net.host ? pid : ((peers.find(p => p.host) || {}).pid || present.slice().sort()[0]);
+    if (!g) return { g, here, present, leader };
+    const byPid = {};
+    for (const p of peers) if (p.game && p.game.id === g.id) byPid[p.pid] = p;
+    byPid[pid] = myPres();
+    const allSet = g.order.every(x => byPid[x] && byPid[x].set);
+    const sim = allSet ? simulate(g.order, byPid) : null;
+    return { g, here, present, leader, byPid, allSet, sim };
+  }
+
+  // ── 화면 ──
+  function lamps(id, cls, n, on){ $(id).innerHTML = Array.from({length:n}, (_, i) => `<span class="lamp ${cls}${i < on ? " on" : ""}"></span>`).join(""); }
+  function setCount(r){ $("countBox").hidden = !r; if (!r) return; lamps("lampS","s",4,r[0]); lamps("lampB","b",4,r[1]); lamps("lampO","o",1,(r[0]+r[1])===0?1:0); }
+  function setStatus(t, cls){ $("status").textContent = t; $("status").className = "status" + (cls ? " " + cls : ""); }
+  function renderEntry(enabled, label){
+    $("entry").hidden = !enabled;
+    if (!enabled) return;
+    $("slots").innerHTML = [0,1,2,3].map(i => `<div class="slot${i===entry.length?" cur":""}">${entry[i] ?? ""}</div>`).join("");
+    $("pad").innerHTML = "1234567890".split("").map(d => `<button data-d="${d}" ${entry.includes(d)||entry.length>=4?"disabled":""}>${d}</button>`).join("")
+      + `<button class="del" data-k="del" ${entry?"":"disabled"}>지우기</button>`
+      + `<button class="del" data-k="clr" ${entry?"":"disabled"}>비우기</button>`
+      + `<button class="wide go" data-k="ok" ${entry.length===4?"":"disabled"}>${label}</button>`;
+  }
+  const nm = x => names[x] || "누군가";
+
+  function show(){
+    $("lobby").hidden = mode !== "lobby";
+    $("game").hidden = mode === "lobby";
+    if (mode === "solo") return showSolo();
+    if (mode !== "online") return;
+
+    $("modeLabel").textContent = "방 코드 — 친구들에게 알려 주세요";
+    $("codeView").textContent = code.toUpperCase();
+    $("btnCopy").hidden = false; setCount(null);
+    $("who").textContent = names[pid];
+
+    const v = view(), g = v.g, sim = v.sim;
+    const inGame = g && g.order.includes(pid);
+    const isLeader = v.leader === pid;
+
+    // 명단
+    const list = g ? [...g.order, ...v.present.filter(x => !g.order.includes(x))] : v.present;
+    $("roster").innerHTML = list.map((x, i) => {
+      let s = "대기실", cls = "";
+      if (g && g.order.includes(x)){
+        if (!v.here.has(x)) s = "연결 끊김";
+        else if (!(v.byPid[x] && v.byPid[x].set)) s = "숫자 정하는 중";
+        else if (sim){
+          const out = !sim.alive.includes(x) || (sim.state === "over" && sim.winner !== x && !sim.draw.includes(x));
+          if (sim.state === "over" && sim.winner === x){ s = "승리"; cls = "turn"; }
+          else if (sim.state === "over" && sim.draw.includes(x)) s = "무승부";
+          else if (out){ s = "탈락"; cls = "outp"; }
+          else if (sim.cracked.has(x)){ s = "4S 맞음 · 이번 회 끝나면 탈락"; cls = "outp"; }
+          else if (sim.who === x){ s = sim.state === "turn" ? "던질 차례" : "판정 기다리는 중"; cls = "turn"; }
+          else s = "준비됨";
+        } else s = "숫자 정함";
+      } else if (g) s = "관전";
+      const seat = g && g.order.includes(x) ? (g.order.indexOf(x) + 1) + "번" : "";
+      return `<div class="player ${cls}"><div class="pn"><small>${seat}</small>${esc(nm(x))}${x===pid?" (나)":""}</div><div class="ps">${s}</div></div>`;
+    }).join("");
+
+    // 시작 버튼 (방장)
+    const canStart = isLeader && (!g || !sim || sim.state === "over" || !inGame);
+    const n = Math.min(v.present.length, MAX);
+    $("startRow").hidden = !(isLeader && (!g || (sim && sim.state === "over")));
+    $("btnStart").disabled = v.present.length < 2;
+    $("btnStart").textContent = g ? `${n}명으로 새 게임` : `${n}명으로 게임 시작`;
+    $("startNote").textContent = v.present.length < 2 ? "친구가 들어오면 시작할 수 있어요" : (v.present.length > MAX ? `최대 ${MAX}명 — 나머지는 관전` : "순서는 무작위로 정해져요");
+    $("roomNote").textContent = isLeader ? "내가 방장이에요." : `방장: ${nm(v.leader)}`;
+    $("againRow").hidden = true;
+
+    // 기록
+    $("log").innerHTML = sim && sim.rows.length ? sim.rows.map(row => {
+      const res = row.res.map(([T, rep]) => `<span><span class="t">${esc(nm(T))}${T===pid?"(나)":""}</span> ${fmt(rep)}</span>`).join("")
+        + (row.waitOn ? `<span class="t">${esc(nm(row.waitOn))} 판정 중…</span>` : "");
+      return `<li class="${row.P===pid?"mine":""}"><span class="n">${row.r+1}회</span><span class="who">${esc(nm(row.P))}</span><span class="g">${row.g}</span><span class="res">${res}</span></li>`;
+    }).join("") : '<li class="empty">아직 기록이 없어요</li>';
+
+    $("secretNote").hidden = !(inGame && st.secret);
+    $("secretNote").textContent = st.secret ? "내 비밀 숫자: " + st.secret : "";
+
+    if (!g){ setStatus(v.present.length < 2 ? "친구들이 들어오길 기다리는 중" : (isLeader ? "모두 모이면 게임 시작을 누르세요" : `${nm(v.leader)} 님이 시작하길 기다리는 중`)); return renderEntry(false); }
+    if (!inGame){ setStatus("이번 판은 관전 중 — 다음 판에 참가할 수 있어요"); return renderEntry(false); }
+    if (!st.secret){ setStatus("내 비밀 숫자 4자리를 정하세요"); return renderEntry(true, "이 숫자로 정하기"); }
+    if (!v.allSet){
+      const wait = g.order.filter(x => !(v.byPid[x] && v.byPid[x].set)).map(nm);
+      setStatus(`${wait.join(", ")} 님이 숫자를 정하는 중`); return renderEntry(false);
+    }
+    if (sim.state === "over"){
+      if (sim.winner === pid) setStatus("승리! 끝까지 살아남았어요", "win");
+      else if (sim.winner) setStatus(`${nm(sim.winner)} 님 승리`, "lose");
+      else setStatus(`무승부 — ${sim.draw.map(nm).join(", ")}`);
+      if (!isLeader){ $("roomNote").textContent = `방장 ${nm(v.leader)} 님이 새 게임을 열 수 있어요`; }
+      return renderEntry(false);
+    }
+    const out = !sim.alive.includes(pid);
+    if (out){ setStatus("탈락 — 관전 중"); return renderEntry(false); }
+    if (sim.state === "turn" && sim.who === pid){
+      setStatus(sim.cracked.has(pid) ? `${sim.round+1}회 · 내 숫자가 맞혀졌어요. 마지막 기회!` : `${sim.round+1}회 · 내 차례 — 숫자를 던지세요`);
+      return renderEntry(true, "던지기");
+    }
+    const who = sim.who;
+    if (!v.here.has(who)) setStatus(`${nm(who)} 님 연결이 끊겼어요. 다시 들어오길 기다리는 중`);
+    else if (sim.state === "judge" && !v.here.has(sim.wait)) setStatus(`${nm(sim.wait)} 님 연결이 끊겨 판정을 기다리는 중`);
+    else setStatus(`${sim.round+1}회 · ${nm(who)} 님 차례`);
+    renderEntry(false);
+  }
+
+  function showSolo(){
+    $("modeLabel").textContent = "혼자 연습";
+    $("codeView").textContent = "VS CPU";
+    $("btnCopy").hidden = true; $("secretNote").hidden = true; $("startRow").hidden = true;
+    $("roster").innerHTML = ""; $("roomNote").textContent = "컴퓨터가 정한 숫자를 맞혀 보세요.";
+    $("who").textContent = nick();
+    $("log").innerHTML = solo.guesses.length ? solo.guesses.map((x,i) =>
+      `<li><span class="n">${i+1}구</span><span class="who">나</span><span class="g">${x.g}</span><span class="res r">${fmt(x.r)}</span></li>`).join("") : '<li class="empty">아직 기록이 없어요</li>';
+    const lastR = solo.guesses.length ? solo.guesses[solo.guesses.length-1].r : null;
+    setCount(lastR);
+    const done = lastR && lastR[0] === 4;
+    $("againRow").hidden = !done;
+    if (done){ setStatus(`정답 ${solo.secret}! ${solo.guesses.length}번 만에 4S`, "win"); renderEntry(false); }
+    else { setStatus(solo.guesses.length ? `${solo.guesses.length}구째` : "첫 공을 던지세요"); renderEntry(true, "던지기"); }
+  }
+
+  // ── 입력 ──
+  function submit(){
+    if (!valid(entry)) return;
+    const val = entry; entry = "";
+    if (mode === "solo"){ solo.guesses.push({ g: val, r: judge(solo.secret, val) }); return show(); }
+    if (!st.secret){ st.secret = val; save(); push(); return sync(); }
+    const v = view();
+    if (v.sim && v.sim.state === "turn" && v.sim.who === pid){
+      const gs = st.guesses.slice(); gs[v.sim.round] = val;
+      st.guesses = Array.from({ length: gs.length }, (_, i) => gs[i] || null);
+      save(); push();
+    }
+    show();
+  }
+  $("pad").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    if (b.dataset.d && entry.length < 4 && !entry.includes(b.dataset.d)) entry += b.dataset.d;
+    else if (b.dataset.k === "del") entry = entry.slice(0,-1);
+    else if (b.dataset.k === "clr") entry = "";
+    else if (b.dataset.k === "ok") return submit();
+    show();
+  });
+  document.addEventListener("keydown", e => {
+    if (mode === "lobby" || $("entry").hidden || e.target.tagName === "INPUT") return;
+    if (/^\d$/.test(e.key) && entry.length < 4 && !entry.includes(e.key)){ entry += e.key; show(); }
+    else if (e.key === "Backspace"){ entry = entry.slice(0,-1); show(); }
+    else if (e.key === "Enter"){ submit(); }
+  });
+
+  $("btnCreate").onclick = () => enterRoom(rid(4), null, true);
+  $("btnJoin").onclick = () => enterRoom($("joinCode").value.trim(), null, false);
+  $("joinCode").addEventListener("keydown", e => { if (e.key === "Enter") $("btnJoin").click(); });
+  $("btnResume").onclick = () => enterRoom(last.code, last.pid, !!last.host);
+  $("btnSolo").onclick = () => { mode = "solo"; solo = { secret: randomSecret(), guesses: [] }; entry = ""; show(); };
+  $("btnAgain").onclick = () => { solo = { secret: randomSecret(), guesses: [] }; entry = ""; show(); };
+  $("btnStart").onclick = () => {
+    const v = view();
+    if (v.leader !== pid || v.present.length < 2) return;
+    const order = shuffle(v.present).slice(0, MAX);
+    st.game = { id: rid(6), t: Math.max(Date.now(), (st.game ? st.game.t : 0) + 1), order };
+    st.secret = ""; st.guesses = []; st.replies = {}; entry = "";
+    save(); push(); show();
+  };
+  $("btnLeave").onclick = () => {
+    netStop(); mode = "lobby"; peers = []; entry = "";
+    $("who").textContent = ""; show();
+  };
+  $("btnCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(code.toUpperCase()); $("btnCopy").textContent = "복사됨"; }
+    catch { const r = document.createRange(); r.selectNodeContents($("codeView")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $("btnCopy").textContent = "선택됨 — Ctrl+C"; }
+    setTimeout(() => $("btnCopy").textContent = "코드 복사", 1800);
+  };
+
+  // ── 온라인 준비 확인 ──
+  if (window.Peer) netMsg("온라인 준비 완료 — 방을 만들고 코드를 친구들에게 보내세요.");
+  else { netMsg("온라인 연결 도구를 못 불러왔어요. 혼자 연습은 가능해요.", true); ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = true); }
+  window.addEventListener("beforeunload", netStop);
+
+  show();
+})();
+</script>
+
+</body></html>
