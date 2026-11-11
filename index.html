@@ -252,6 +252,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
       <button class="btn main" id="btnStart" hidden>게임 시작</button>
       <p class="muted" id="startNote" style="color:#b9c0cc" hidden></p>
       <button class="btn main" id="btnAgain" hidden>한 판 더</button>
+      <button class="btn sub" id="btnKick" hidden></button>
     </div>
     <div class="feed-h"><h3>경기 기록</h3><span class="muted" style="color:#d9e8dc" id="feedNote"></span></div>
     <ol class="feed" id="feed"></ol>
@@ -270,7 +271,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 <div class="call" id="call" hidden></div>
 <canvas id="fx"></canvas>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.10.1/mqtt.min.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -337,7 +338,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 
   const savedNick = LS.get("nb4:nick"); if (savedNick) $("nick").value = savedNick;
   const last = LS.get("nb4:last2");
-  if (last && last.code && LS.get(`nb4:${last.code}:${last.pid}`)){ $("btnResume").hidden = false; $("btnResume").textContent = "이어서 하기 · 방 " + last.code.toUpperCase(); }
+  if (last && last.code && LS.get(`nb4:${last.code}:${LS.get("nb4:me")}`)){ $("btnResume").hidden = false; $("btnResume").textContent = "이어서 하기 · 방 " + last.code.toUpperCase(); }
   function nick(){ const n = $("nick").value.trim().slice(0,12); LS.set("nb4:nick", n); return n || "익명"; }
   function save(){ if (st) LS.set(`nb4:${code}:${pid}`, st); }
 
@@ -448,165 +449,133 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     $("finalOk").onclick = e => { e.stopPropagation(); nextCall(); };
   }
 
-  /* ── 네트워크: PeerJS(브라우저끼리 직접 연결) ──
-     방장 브라우저가 "nb4s-코드" 이름으로 대기하고, 친구들은 거기에 붙는다.
-     각자 자기 상태를 방장에게 보내고, 방장이 모두의 상태를 묶어 다시 뿌린다.
-     폰은 카톡 등으로 넘어가면 숨은 브라우저의 연결을 끊는다(2026-11-11 실사용: 3번째 친구에게
-     코드 보내러 간 사이 방이 터짐). 그래서 끊겨도 저절로 다시 붙는다:
-       - 4초마다 서로 신호(심장박동). 12초 넘게 소식 없으면 끊긴 걸로 보고 다시 연결
-       - 화면으로 돌아오면(visibilitychange) 바로 확인·재연결
-       - 상태(비밀 숫자·던진 공·판정)는 각자 폰에 저장돼 있어 다시 붙으면 그대로 이어진다 */
-  const net = { peer: null, host: false, code: null, conns: new Map(), pres: {}, seenAt: {}, hostConn: null,
-                lastAll: 0, busy: false, live: false, timer: null, lastErr: "" };
+  /* ── 네트워크: 공용 MQTT 중계 서버 두 곳(HiveMQ·EMQX)에 동시에 붙는다 ──
+     예전엔 방장 폰이 서버 역할(PeerJS)을 해서, 방장이 카톡 가거나 화면을 끄면 방 전체가 터졌다
+     (2026-11-11 실사용 2회). 이제는:
+       - 각자 자기 상태를 중계 서버에 '보관(retain)' 으로 올린다 → 누가 나가도 방은 남고,
+         다시 들어오면 서버에 보관된 모두의 상태를 받아 그대로 이어진다
+       - 접속 여부는 서버가 대신 알려 준다(연결이 죽으면 서버가 'on=0' 을 남김)
+       - 서버 두 곳에 똑같이 올리고 둘 다 듣는다. 한 곳이 불안정해도 다른 곳으로 이어진다
+     비밀 숫자는 절대 안 올라간다. 올라가는 건 이름·던진 숫자·판정 결과뿐. */
+  const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://broker.emqx.io:8084/mqtt"];
+  const TOPIC = "nb4s-ayn7/";
+  const net = { clients: [], base: null, pres: {}, online: {}, seq: 0, code: null, lastErr: "" };
   window.__nbNet = net;   // 시험용
+  window.__nbDbg = () => { const v = view(); return { entry, guesses: st.guesses, order: st.game && st.game.order, pid, sim: v.sim && { state: v.sim.state, who: v.sim.who, round: v.sim.round } }; };
   const netMsg = (t, warn) => { $("netNote").textContent = t; $("netNote").className = "muted" + (warn ? " warn" : ""); };
   let roomNote = "";
-  const HB = 4000, STALE = 12000, DROP = 25000;
+  // 이 기기(브라우저)의 고정 번호 — 나갔다 들어와도 같은 사람으로 인식(예전엔 들어올 때마다 새 번호라 '다른 사람' 으로 잡힘)
+  const DEVICE = LS.get("nb4:me") || (() => { const v = rid(10); LS.set("nb4:me", v); return v; })();
 
-  function setLive(on){
-    if (net.live === on) return;
-    net.live = on;
-    const el = $("connChip");
+  function anyLive(){ return net.clients.some(c => c.connected); }
+  function setLive(){
+    const on = anyLive(), el = $("connChip");
     el.hidden = mode !== "online";
     el.textContent = on ? "●" : "재연결…";
     el.title = on ? "연결됨" : "다시 연결 중";
     el.className = "chip conn" + (on ? " ok" : " bad");
   }
+  const isOnline = x => x === pid || Object.values(net.online[x] || {}).some(v => v === "1");
 
-  // 방장: 이름을 걸고 대기. 실패하면 이유를 reject
-  function hostOpen(c){
-    return new Promise((resolve, reject) => {
-      let done = false;
-      const fin = e => { if (done) return; done = true; e ? reject(e) : resolve(); };
-      setTimeout(() => fin({ type: "timeout" }), 15000);
-      const p = new Peer("nb4s-" + c); net.peer = p; net.host = true;
-      p.on("open", () => { fin(); setLive(true); });
-      p.on("connection", conn => {
-        conn.on("data", d => {
-          if (!(d && d.t === "p" && d.p && typeof d.p.pid === "string")) return;
-          const k = d.p.pid;                       // 다시 붙으면 연결 id 가 바뀌므로 사람(pid) 기준으로 묶는다
-          net.conns.set(conn.peer, conn); net.seenAt[k] = Date.now();
-          const before = JSON.stringify(net.pres[k] || null), now = JSON.stringify(d.p);
-          net.pres[k] = d.p;
-          if (before !== now) relay();
-        });
-        conn.on("close", () => { net.conns.delete(conn.peer); });   // 상태는 DROP 동안 남겨 둔다(잠깐 끊긴 친구)
-        conn.on("error", () => {});
-      });
-      p.on("disconnected", () => { setLive(false); setTimeout(() => { try { if (!p.destroyed) p.reconnect(); } catch {} }, 1000); });
-      p.on("open", () => setLive(true));
-      p.on("error", e => { net.lastErr = e && e.type || ""; fin(e); });
-    });
-  }
+  let syncQueued = false;
+  function queueSync(){ if (syncQueued) return; syncQueued = true; setTimeout(() => { syncQueued = false; if (Object.keys(net.pres).length) roomNote = ""; peers = Object.entries(net.pres).filter(([k]) => k !== pid).map(([, v]) => v.p); sync(); }, 30); }
 
-  // 친구: 방장에게 붙는다. 첫 연결은 결과를 돌려주고, 이후 끊기면 watchdog 이 다시 부른다
-  function guestOpen(c){
-    return new Promise((resolve, reject) => {
-      let done = false;
-      const fin = e => { if (done) return; done = true; e ? reject(e) : resolve(); };
-      setTimeout(() => fin({ type: "timeout" }), 15000);
-      try { if (net.peer) net.peer.destroy(); } catch {}
-      const p = new Peer(); net.peer = p; net.host = false;
-      p.on("open", () => {
-        const conn = p.connect("nb4s-" + c, { reliable: true }); net.hostConn = conn;
-        conn.on("open", () => { net.lastAll = Date.now(); fin(); setLive(true); push(); });
-        conn.on("data", d => {
-          if (d && d.t === "all" && Array.isArray(d.list)){
-            net.lastAll = Date.now(); setLive(true);
-            const list = d.list.filter(x => x && typeof x.pid === "string" && x.pid !== pid);
-            const changed = JSON.stringify(list) !== JSON.stringify(peers);
-            peers = list;
-            if (changed) sync();
-          }
-        });
-        conn.on("close", () => { if (net.hostConn === conn){ setLive(false); } });
-        conn.on("error", () => {});
-      });
-      p.on("error", e => { net.lastErr = e && e.type || ""; fin(e); });
-    });
-  }
-
-  // 4초마다: 심장박동 보내기 + 끊긴 연결 다시 잇기
-  async function heal(){
-    if (mode !== "online" || net.busy) return;
-    const now = Date.now();
-    if (net.host){
-      broadcast();
-      let gone = false;
-      for (const k of Object.keys(net.pres)) if (now - (net.seenAt[k] || 0) > DROP){ delete net.pres[k]; gone = true; }
-      if (gone) relay();
-      const p = net.peer;
-      if (!p || p.destroyed){                        // 폰이 연결을 통째로 죽였으면 같은 이름으로 다시 연다
-        net.busy = true; setLive(false);
-        try { await hostOpen(net.code); } catch {}
-        net.busy = false;
-      } else if (p.disconnected){ setLive(false); try { p.reconnect(); } catch {} }
-    } else {
-      push();
-      const ok = net.hostConn && net.hostConn.open && now - net.lastAll < STALE;
-      if (!ok){
-        setLive(false);
-        net.busy = true;
-        try { await guestOpen(net.code); } catch {}
-        net.busy = false;
-      }
+  function onMessage(bi, topic, payload){
+    const rest = topic.slice(net.base.length);
+    const [kind, who] = rest.split("/");
+    if (!who || who === pid && kind === "p") return;      // 내 상태는 내가 제일 최신
+    const text = payload.toString();
+    if (kind === "p"){
+      if (!text) return;
+      try {
+        const m = JSON.parse(text);
+        if (!m || !m.p || typeof m.p.pid !== "string" || m.p.pid !== who || typeof m.seq !== "number") return;
+        const old = net.pres[who];
+        if (!old || m.seq > old.seq){ net.pres[who] = m; queueSync(); }
+      } catch {}
+    } else if (kind === "on"){
+      (net.online[who] = net.online[who] || {})[bi] = text;
+      queueSync();
     }
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) heal(); });
-  window.addEventListener("online", () => heal());
+
+  function netJoin(c){
+    return new Promise((resolve, reject) => {
+      if (!window.mqtt){ reject({ type: "no-lib" }); return; }
+      net.base = TOPIC + c + "/"; net.code = c; net.pres = {}; net.online = {};
+      let done = false;
+      const fin = e => { if (done) return; done = true; e ? reject(e) : resolve(); };
+      setTimeout(() => fin(anyLive() ? null : { type: "timeout" }), 12000);
+      net.clients = BROKERS.map((url, bi) => {
+        const cl = mqtt.connect(url, {
+          clientId: "nb4s_" + pid + "_" + rid(5), clean: true, keepalive: 20,
+          reconnectPeriod: 2000, connectTimeout: 10000,
+          will: { topic: net.base + "on/" + pid, payload: "0", retain: true, qos: 1 }
+        });
+        cl.on("connect", () => {
+          cl.subscribe(net.base + "#", { qos: 1 });
+          cl.publish(net.base + "on/" + pid, "1", { retain: true, qos: 1 });
+          publishMe(cl);
+          setLive(); fin();
+        });
+        cl.on("message", (t, p) => onMessage(bi, t, p));
+        cl.on("close", setLive);
+        cl.on("offline", setLive);
+        cl.on("error", e => { net.lastErr = (e && e.message) || "error"; });
+        return cl;
+      });
+    });
+  }
+  function publishMe(only){
+    if (!st || !net.base) return;
+    const msg = JSON.stringify({ seq: net.seq, p: { v: 3, ...myPres() } });
+    for (const cl of only ? [only] : net.clients) if (cl.connected) cl.publish(net.base + "p/" + pid, msg, { retain: true, qos: 1 });
+  }
+  function push(){ net.seq = Math.max(Date.now(), net.seq + 1); publishMe(); }
 
   function netStop(){
-    clearInterval(net.timer); net.timer = null;
-    try { if (net.peer) net.peer.destroy(); } catch {}
-    net.peer = null; net.hostConn = null; net.conns = new Map(); net.pres = {}; net.seenAt = {}; net.live = false;
+    for (const cl of net.clients){
+      try { if (cl.connected) cl.publish(net.base + "on/" + pid, "0", { retain: true, qos: 1 }); } catch {}
+      try { cl.end(false); } catch {}
+    }
+    net.clients = []; net.pres = {}; net.online = {};
     $("connChip").hidden = true;
   }
-  const myPres = () => ({ pid, nick: names[pid], host: net.host, game: st.game, set: !!st.secret, guesses: st.guesses, replies: st.replies });
-  function broadcast(){
-    const list = [{ v: 2, ...myPres() }, ...Object.values(net.pres)];
-    for (const c of net.conns.values()) if (c.open) { try { c.send({ t: "all", list }); } catch {} }
-  }
-  function relay(){ broadcast(); peers = Object.values(net.pres).filter(x => x.pid !== pid); sync(); }
-  function push(){
-    if (!net.peer || !st) return;
-    if (net.host) broadcast();
-    else if (net.hostConn && net.hostConn.open){ try { net.hostConn.send({ t: "p", p: { v: 2, ...myPres() } }); } catch {} }
-  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || mode !== "online") return;
+    for (const cl of net.clients) if (!cl.connected){ try { cl.reconnect(); } catch {} }
+    push(); setLive();
+  });
+  setInterval(() => { if (mode === "online") setLive(); }, 3000);
 
-  async function enterRoom(c, resumePid, asHost){
+  const myPres = () => ({ pid, nick: names[pid], host: !!(LS.get("nb4:last2") || {}).host, game: st.game, set: !!st.secret, guesses: st.guesses, replies: st.replies });
+
+  async function enterRoom(c, asHost){
     c = (c || "").toLowerCase();
     if (!/^[a-z0-9]{4}$/.test(c)){ netMsg("방 코드는 4자리예요.", true); return; }
-    if (!window.Peer){ netMsg("온라인 연결 도구를 못 불러왔어요. 인터넷 연결을 확인하고 새로고침해 주세요.", true); return; }
+    if (!window.mqtt){ netMsg("온라인 연결 도구를 못 불러왔어요. 인터넷 연결을 확인하고 새로고침해 주세요.", true); return; }
     ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = true);
     netMsg(asHost ? "방 여는 중…" : "방에 들어가는 중…");
-    let ok = false;
-    for (let tries = 0; tries < (asHost ? 6 : 3) && !ok; tries++){
-      try { await (asHost ? hostOpen(c) : guestOpen(c)); ok = true; }
-      catch (e){
-        netStop();
-        const t = e && e.type;
-        if (asHost && t === "unavailable-id"){
-          if (resumePid){ netMsg("방을 다시 여는 중… 잠시만요"); await new Promise(r => setTimeout(r, 3000)); }
-          else c = rid(4);
-        } else if (!asHost && t === "peer-unavailable"){
-          netMsg("그 코드의 방이 없어요. 코드를 확인하거나, 방장 화면이 켜져 있는지 물어보세요.", true); break;
-        } else {
-          netMsg(`연결 재시도 중… (${t || "알 수 없음"})`); await new Promise(r => setTimeout(r, 1500));
-        }
-      }
-    }
-    ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = false);
-    if (!ok){ if (!$("netNote").classList.contains("warn")) netMsg(`연결하지 못했어요 (${net.lastErr || "시간 초과"}). 잠시 뒤 다시 눌러 주세요.`, true); return; }
-    netMsg("");
-    code = c; net.code = c; pid = resumePid || rid(8);
+    code = c; pid = DEVICE;
+    const lastRoom = LS.get("nb4:last2") || {};
+    const host = asHost || (lastRoom.code === c && !!lastRoom.host);
+    LS.set("nb4:last2", { code, pid, host });
     st = LS.get(`nb4:${code}:${pid}`) || { game: null, secret: "", guesses: [], replies: {} };
     names[pid] = nick();
-    mode = "online"; peers = []; entry = ""; roomNote = "";
+    try { await netJoin(c); }
+    catch (e){
+      netStop();
+      ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = false);
+      netMsg(`연결하지 못했어요 (${e && e.type === "no-lib" ? "연결 도구 없음" : net.lastErr || "시간 초과"}). 와이파이/데이터를 확인하고 다시 눌러 주세요.`, true);
+      return;
+    }
+    ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = false);
+    netMsg("");
+    mode = "online"; entry = ""; roomNote = ""; peers = [];
     seen.gid = null;
-    LS.set("nb4:last2", { code, pid, host: asHost }); save();
-    net.live = false; setLive(true);
-    clearInterval(net.timer); net.timer = setInterval(heal, HB);
-    push(); sync();
+    save(); push(); sync();
+    // 없는 코드로 들어왔는지 안내(몇 초 뒤에도 아무도 없으면)
+    if (!asHost) setTimeout(() => { if (mode === "online" && code === c && !Object.keys(net.pres).length){ roomNote = "아직 아무도 없는 방이에요. 코드가 맞는지 확인해 주세요."; show(); } }, 5000);
   }
 
   // 다른 사람 상태가 바뀔 때마다: 최신 판 따라가기 + 남이 던진 숫자에 내 숫자로 판정해 답하기
@@ -622,6 +591,9 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     if (newest && (!st.game || newest.id !== st.game.id)){
       st.game = { id: newest.id, t: newest.t, order: newest.order.slice(0, MAX).filter(x => typeof x === "string") };
       st.secret = ""; st.guesses = []; st.replies = {}; entry = ""; changed = true;
+    } else if (newest && newest.t > st.game.t){
+      st.game = { id: st.game.id, t: newest.t, order: newest.order.slice(0, MAX).filter(x => typeof x === "string") };
+      changed = true;
     }
     // 비밀 숫자는 내 화면 밖으로 안 나간다. 판정 결과만 보낸다
     if (st.game && st.secret && st.game.order.includes(pid)){
@@ -638,10 +610,12 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 
   function view(){
     const g = st.game;
-    const here = new Set(peers.map(p => p.pid)); here.add(pid);
-    const present = [pid, ...peers.map(p => p.pid)].filter((x, i, a) => a.indexOf(x) === i);
-    // 방장 = 방을 만든 사람(그 브라우저가 연결의 중심이라 나가면 방이 닫힌다)
-    const leader = net.host ? pid : ((peers.find(p => p.host) || {}).pid || present.slice().sort()[0]);
+    const here = new Set([pid, ...peers.map(p => p.pid).filter(isOnline)]);
+    const present = [...here];
+    // 방장 = 방 만든 사람. 그 사람이 자리를 비우면 경기 순서상 첫 번째로 접속해 있는 사람이 대신 한다
+    const creator = (peers.find(p => p.host) || (myPres().host ? { pid } : {})).pid;
+    const leader = (creator && here.has(creator)) ? creator
+      : ((g && g.order.find(x => here.has(x))) || present.slice().sort()[0]);
     if (!g) return { g, here, present, leader };
     const byPid = {};
     for (const p of peers) if (p.game && p.game.id === g.id) byPid[p.pid] = p;
@@ -756,6 +730,9 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     const showStart = isLeader && (!g || (sim && sim.state === "over"));
     const n = Math.min(v.present.length, MAX);
     $("btnStart").hidden = !showStart;
+    const awayIn = g && sim && sim.state !== "over" ? g.order.filter(x => !v.here.has(x)) : (g && !v.allSet ? g.order.filter(x => !v.here.has(x)) : []);
+    $("btnKick").hidden = !(isLeader && awayIn.length && g.order.length - awayIn.length >= 2);
+    $("btnKick").textContent = `자리 비운 ${awayIn.map(nm).join(", ")} 님 빼고 계속`;
     $("btnStart").disabled = v.present.length < 2;
     $("btnStart").textContent = g ? `${n}명으로 새 게임` : `${n}명으로 게임 시작`;
     $("startNote").hidden = !showStart;
@@ -860,10 +837,17 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     else if (e.key === "Enter") submit();
   });
 
-  $("btnCreate").onclick = () => enterRoom(rid(4), null, true);
-  $("btnJoin").onclick = () => enterRoom($("joinCode").value.trim(), null, false);
+  $("btnCreate").onclick = () => enterRoom(rid(4), true);
+  $("btnJoin").onclick = () => enterRoom($("joinCode").value.trim(), false);
   $("joinCode").addEventListener("keydown", e => { if (e.key === "Enter") $("btnJoin").click(); });
-  $("btnResume").onclick = () => enterRoom(last.code, last.pid, !!last.host);
+  $("btnResume").onclick = () => enterRoom(last.code, !!last.host);
+  $("btnKick").onclick = () => {
+    const v = view(); if (v.leader !== pid || !v.g) return;
+    const order = v.g.order.filter(x => v.here.has(x));
+    if (order.length < 2) return;
+    st.game = { id: v.g.id, t: Math.max(Date.now(), v.g.t + 1), order };
+    save(); push(); show();
+  };
   $("btnSolo").onclick = () => { mode = "solo"; solo = { secret: randomSecret(), guesses: [] }; entry = ""; show(); };
   $("btnAgain").onclick = () => { solo = { secret: randomSecret(), guesses: [] }; entry = ""; show(); };
   $("btnPeek").onclick = () => { peek = !peek; $("btnPeek").textContent = peek ? "숨기기" : "보기"; show(); };
@@ -882,7 +866,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   };
 
   // ── 온라인 준비 확인 ──
-  if (window.Peer) netMsg("방을 만들고 위에 뜨는 코드를 친구들에게 알려 주세요.");
+  if (window.mqtt) netMsg("방을 만들고 위에 뜨는 코드를 친구들에게 알려 주세요.");
   else { netMsg("온라인 연결 도구를 못 불러왔어요. 혼자 연습은 가능해요.", true); ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = true); }
   window.addEventListener("beforeunload", netStop);
 
