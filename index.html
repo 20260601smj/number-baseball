@@ -2,7 +2,7 @@
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#2c6436">
-<title>4S 숫자야구</title>
+<title>친구 게임방</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Bebas+Neue&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
 <style>
@@ -204,14 +204,14 @@ details.rules ul{margin:10px 0 2px;padding-left:18px;display:grid;gap:6px;font-s
 .sheet-h h3{margin:0;font-family:var(--f-head);font-weight:400;font-size:19px}
 .sheet-h button{background:var(--leather2);border-radius:50%;width:34px;height:34px;font-size:15px}
 .chat-list{list-style:none;margin:0;padding:4px 2px;display:flex;flex-direction:column;gap:6px;height:min(52vh,420px);overflow-y:auto;overscroll-behavior:contain}
-.msg{max-width:82%;align-self:flex-start;display:grid;gap:2px}
-.msg .who{font-size:11.5px;color:var(--muted);font-weight:700;padding-left:6px}
-.msg .bub{background:#fff;border-radius:14px 14px 14px 4px;padding:8px 12px;font-size:15px;line-height:1.4;word-break:break-word;white-space:pre-wrap;box-shadow:0 1px 0 var(--line)}
-.msg.me{align-self:flex-end}
-.msg.me .who{text-align:right;padding-right:6px}
-.msg.me .bub{background:var(--stitch);color:#fff;border-radius:14px 14px 4px 14px;box-shadow:none}
-.msg.sys{align-self:center;max-width:100%}
-.msg.sys .bub{background:transparent;box-shadow:none;color:var(--muted);font-size:12.5px;padding:2px}
+.chat-list .msg{max-width:82%;align-self:flex-start;display:grid;gap:2px}
+.chat-list .msg .who{font-size:11.5px;color:var(--muted);font-weight:700;padding-left:6px}
+.chat-list .msg .bub{background:#fff;border-radius:14px 14px 14px 4px;padding:8px 12px;font-size:15px;line-height:1.4;word-break:break-word;white-space:pre-wrap;box-shadow:0 1px 0 var(--line)}
+.chat-list .msg.me{align-self:flex-end}
+.chat-list .msg.me .who{text-align:right;padding-right:6px}
+.chat-list .msg.me .bub{background:var(--stitch);color:#fff;border-radius:14px 14px 4px 14px;box-shadow:none}
+.chat-list .msg.sys{align-self:center;max-width:100%}
+.chat-list .msg.sys .bub{background:transparent;box-shadow:none;color:var(--muted);font-size:12.5px;padding:2px}
 .chat-empty{color:var(--muted);text-align:center;font-size:13px;margin:auto}
 .chat-form{display:grid;grid-template-columns:1fr auto;gap:8px}
 .chat-form .inp{font-size:16px;padding:11px 14px}
@@ -232,6 +232,68 @@ details.rules ul{margin:10px 0 2px;padding-left:18px;display:grid;gap:6px;font-s
 .ban-list{display:grid;gap:6px}
 .ban-row{display:flex;justify-content:space-between;align-items:center;background:var(--leather2);border-radius:10px;padding:8px 10px;font-size:14px}
 .ban-row button{background:#fff;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700}
+/* 게임 고르기 */
+.pick-h{display:flex;justify-content:space-between;align-items:baseline}
+.gchips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gchip{background:var(--leather2);border-radius:14px;padding:10px 6px;display:grid;justify-items:center;gap:4px;border:3px solid transparent;color:var(--ink)}
+.gchip .gi{width:34px;height:34px;display:grid;place-items:center}
+.gchip .gn{font-weight:900;font-size:14px}
+.gchip .gp{font-size:11.5px;color:var(--muted)}
+.gchip.sel{border-color:var(--stitch);background:#fff}
+.gchip:disabled{cursor:default}
+.gchip:disabled:not(.sel){opacity:.55}
+.gi .ball{width:30px;height:30px}
+.gi .stone2{display:flex}
+.gi .stone2 i{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#555,#111);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.gi .stone2 i+i{margin-left:-7px;background:radial-gradient(circle at 35% 30%,#fff,#d9d4c8)}
+.gi .wd{font-family:var(--f-head);font-size:19px;color:var(--stitch);line-height:1}
+/* 오목 */
+.goban-wrap{background:#d8a961;border-radius:14px;padding:10px;box-shadow:0 10px 24px rgba(0,0,0,.25),inset 0 0 0 2px #c4924b}
+.goban{display:grid;grid-template-columns:repeat(15,1fr);aspect-ratio:1;max-width:100%;touch-action:manipulation}
+.cell{position:relative;background:none;padding:0;border:0;aspect-ratio:1;cursor:pointer}
+.cell::before,.cell::after{content:"";position:absolute;background:#5b3d1a;opacity:.75}
+.cell::before{left:0;right:0;top:50%;height:1px}
+.cell::after{top:0;bottom:0;left:50%;width:1px}
+.cell.c0::before{left:50%}.cell.c14::before{right:50%}
+.cell.r0::after{top:50%}.cell.r14::after{bottom:50%}
+.cell .star{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#5b3d1a}
+.cell .stone{position:absolute;inset:6%;border-radius:50%;z-index:1;box-shadow:0 2px 3px rgba(0,0,0,.35)}
+.cell .stone.b{background:radial-gradient(circle at 35% 30%,#666,#111 70%)}
+.cell .stone.w{background:radial-gradient(circle at 35% 30%,#fff,#d6d0c2 75%)}
+.cell .stone.ghost{opacity:.5;box-shadow:none}
+.cell .stone.drop{animation:stonedrop .28s cubic-bezier(.2,1.6,.4,1)}
+@keyframes stonedrop{from{transform:scale(1.6);opacity:0}}
+.cell .stone.last::after{content:"";position:absolute;left:50%;top:50%;width:30%;height:30%;transform:translate(-50%,-50%);border-radius:50%;background:var(--stitch)}
+.cell .stone.win{box-shadow:0 0 0 2px var(--s),0 0 12px var(--s);animation:winglow 1s ease-in-out infinite alternate}
+@keyframes winglow{to{box-shadow:0 0 0 3px var(--s),0 0 20px var(--s)}}
+.goban.mine .cell:hover .stone.ghost{opacity:.65}
+.om-act{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.seat.bk,.seat.wh{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.seat.bk{background:#111}.seat.wh{background:#fff;box-shadow:inset 0 0 0 1px #bbb}
+/* 끝말잇기 */
+.word-now{font-family:var(--f-head);font-size:44px;line-height:1.1;letter-spacing:.02em;word-break:keep-all}
+.word-now .last{color:var(--s);display:inline-block}
+.word-now.pop{animation:wordpop .4s cubic-bezier(.2,1.6,.4,1)}
+@keyframes wordpop{from{transform:scale(.6);opacity:0}}
+.msg.wsub{font-size:17px}
+.timer{position:relative;height:22px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}
+.timer-bar{position:absolute;inset:0 auto 0 0;background:var(--b);border-radius:999px;transition:width .2s linear}
+.timer-bar.hurry{background:var(--o)}
+.timer span{position:relative;font-family:var(--f-call);font-size:17px;line-height:22px}
+.wd-row{display:flex;justify-content:space-between;align-items:center;min-height:22px}
+.wd-err{color:var(--o);font-size:13px;font-weight:700}
+.linkbtn{background:none;color:var(--muted);font-size:13px;text-decoration:underline;padding:4px}
+.wrow{background:var(--leather);border-radius:14px;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.wrow.mine{background:#fff;box-shadow:inset 4px 0 0 var(--stitch)}
+.wrow.fresh{animation:drop .45s cubic-bezier(.2,1.4,.4,1)}
+.wrow .wn{color:var(--muted);font-weight:700;font-size:13px;min-width:4.5em;max-width:7em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrow .ww{font-family:var(--f-head);font-size:22px;flex:1;min-width:0;word-break:keep-all}
+.wrow .ww .last{color:var(--stitch)}
+.wrow.out{background:#fde4e0}
+.wrow.out .ww{font-family:var(--f-body);font-size:14px;font-weight:700;color:var(--o)}
+.wrow.start .ww{color:var(--muted)}
+.call .bigword{font-family:var(--f-head);font-size:40px;line-height:1.1}
+.call .bigword.bad{color:var(--o)}
 canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
 </style>
@@ -239,7 +301,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 
 <div class="app">
   <div class="top">
-    <div class="logo"><div class="ball mini"></div>숫자야구</div>
+    <div class="logo"><div class="ball mini"></div>게임방</div>
     <div class="top-r">
       <span class="chip conn" id="connChip" hidden></span>
       <span class="chip code" id="codeChip" hidden></span>
@@ -252,8 +314,8 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   <section id="lobby" class="app">
     <div class="hero">
       <div class="ball"></div>
-      <h1>숫자야구 <b>4S</b></h1>
-      <p>서로 다른 숫자 4개, 먼저 4 스트라이크</p>
+      <h1>친구 <b>게임방</b></h1>
+      <p>숫자야구 · 오목 · 끝말잇기 — 링크 하나로 같이</p>
     </div>
     <div class="card">
       <div class="field">
@@ -267,17 +329,35 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
         <button class="btn sub" id="btnJoin">입장</button>
       </div>
       <button class="btn sub" id="btnResume" hidden>이어서 하기</button>
-      <button class="btn sub" id="btnSolo">혼자 연습 (컴퓨터)</button>
+      <button class="btn sub" id="btnSolo">숫자야구 혼자 연습 (컴퓨터)</button>
       <p class="muted" id="netNote">온라인 연결 확인 중…</p>
     </div>
     <details class="rules">
-      <summary>규칙 보기</summary>
+      <summary>숫자야구 규칙 (2~4명)</summary>
       <ul>
-        <li>2~4명. 각자 0~9 중 서로 다른 숫자 4개로 비밀 숫자를 정해요 (0으로 시작 가능).</li>
+        <li>각자 0~9 중 서로 다른 숫자 4개로 비밀 숫자를 정해요 (0으로 시작 가능).</li>
         <li>내 차례에 숫자를 던지면 남은 상대 모두의 숫자에 각각 판정이 나와요.<br>
           <span class="legend"><span class="sv">S</span></span> 숫자·자리 다 맞음 &nbsp; <span class="legend"><span class="bv">B</span></span> 숫자만 맞음 &nbsp; <span class="legend"><span class="ov">OUT</span></span> 하나도 없음</li>
         <li>내 숫자가 4S로 뚫리면 그 회가 끝날 때 탈락. 그 회에 내 차례가 남았으면 마지막 한 번은 던질 수 있어요.</li>
         <li>마지막까지 살아남은 한 명이 승리. 같은 회에 모두 탈락하면 무승부.</li>
+      </ul>
+    </details>
+    <details class="rules">
+      <summary>오목 규칙 (2명)</summary>
+      <ul>
+        <li>15×15 판. 흑이 먼저, 번갈아 한 수씩 둬요. 흑·백은 무작위로 정해져요.</li>
+        <li>가로·세로·대각선으로 5개 이상 이어지면 승리 (금수 없음).</li>
+        <li>둘 곳을 누르면 미리보기 돌이 놓이고, '여기에 두기'를 눌러야 확정돼요.</li>
+        <li>3명 이상이면 2명만 두고 나머지는 구경해요.</li>
+      </ul>
+    </details>
+    <details class="rules">
+      <summary>끝말잇기 규칙 (2~6명)</summary>
+      <ul>
+        <li>시작 단어가 주어지면 순서대로 앞 단어의 끝 글자로 시작하는 단어를 내요.</li>
+        <li>한글 2글자 이상, 이미 나온 단어는 안 돼요. 두음법칙 인정 (예: 력 → 역, 라 → 나).</li>
+        <li>한 사람당 20초. 시간이 지나거나 '포기'를 누르면 탈락. 마지막 한 명이 승리.</li>
+        <li>사전 검사는 없어요. 말이 안 되는 단어는 채팅으로 따지고, 방장이 판단해 주세요.</li>
       </ul>
     </details>
   </section>
@@ -285,17 +365,38 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   <!-- 게임 -->
   <section id="game" class="app" hidden>
     <div class="players" id="players"></div>
-    <div class="board">
-      <div class="inning" id="inning"></div>
-      <div class="msg" id="msg"></div>
-      <div class="secret" id="secretBox" hidden>내 숫자 <b id="secretVal">● ● ● ●</b><button id="btnPeek">보기</button></div>
-      <button class="btn main" id="btnStart" hidden>게임 시작</button>
-      <p class="muted" id="startNote" style="color:#b9c0cc" hidden></p>
-      <button class="btn main" id="btnAgain" hidden>한 판 더</button>
-      <button class="btn sub" id="btnKick" hidden></button>
+    <div class="card picker" id="picker" hidden>
+      <div class="pick-h"><h2>게임 고르기</h2></div>
+      <div class="gchips" id="gchips"></div>
+      <button class="btn main" id="btnStart">게임 시작</button>
+      <p class="muted" id="startNote"></p>
     </div>
-    <div class="feed-h"><h3>경기 기록</h3><span class="muted" style="color:#d9e8dc" id="feedNote"></span></div>
-    <ol class="feed" id="feed"></ol>
+    <div id="bbArea" class="app">
+      <div class="board">
+        <div class="inning" id="inning"></div>
+        <div class="msg" id="msg"></div>
+        <div class="secret" id="secretBox" hidden>내 숫자 <b id="secretVal">● ● ● ●</b><button id="btnPeek">보기</button></div>
+        <button class="btn main" id="btnAgain" hidden>한 판 더</button>
+        <button class="btn sub" id="btnKick" hidden></button>
+      </div>
+      <div class="feed-h"><h3>경기 기록</h3><span class="muted" style="color:#d9e8dc" id="feedNote"></span></div>
+      <ol class="feed" id="feed"></ol>
+    </div>
+    <div id="omArea" class="app" hidden>
+      <div class="board"><div class="inning" id="omInn"></div><div class="msg" id="omMsg"></div></div>
+      <div class="goban-wrap"><div class="goban" id="goban"></div></div>
+      <p class="muted" style="color:#d9e8dc;text-align:center" id="omNote"></p>
+    </div>
+    <div id="wdArea" class="app" hidden>
+      <div class="board">
+        <div class="inning" id="wdInn"></div>
+        <div class="word-now" id="wdNow"></div>
+        <div class="msg wsub" id="wdMsg"></div>
+        <div class="timer" id="wdTimer" hidden><div class="timer-bar" id="wdBar"></div><span id="wdSec"></span></div>
+      </div>
+      <div class="feed-h"><h3>이어진 단어</h3><span class="muted" style="color:#d9e8dc" id="wdCount"></span></div>
+      <ol class="feed" id="wdFeed"></ol>
+    </div>
   </section>
 </div>
 
@@ -308,6 +409,22 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   </div>
 </div>
 
+<div class="dock" id="omDock" hidden>
+  <div class="dock-in">
+    <div class="dock-label" id="omDockLabel"></div>
+    <div class="om-act"><button class="btn sub" id="omCancel" type="button">취소</button><button class="btn main" id="omPlace" type="button">여기에 두기</button></div>
+  </div>
+</div>
+<div class="dock" id="wdDock" hidden>
+  <div class="dock-in">
+    <div class="dock-label" id="wdDockLabel"></div>
+    <form class="chat-form" id="wdForm">
+      <input class="inp" id="wdInput" type="text" maxlength="12" placeholder="단어 입력" autocomplete="off" enterkeyhint="send">
+      <button class="btn main" type="submit">내기</button>
+    </form>
+    <div class="wd-row"><span class="wd-err" id="wdErr"></span><button type="button" class="linkbtn" id="wdGive">포기하기</button></div>
+  </div>
+</div>
 <div class="call" id="call" hidden></div>
 <button class="fab" id="btnChat" aria-label="채팅" hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg><span class="badge" id="chatBadge" hidden></span></button>
 <div class="sheet" id="chatSheet" hidden>
@@ -619,7 +736,8 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   });
   setInterval(() => { if (mode === "online") setLive(); }, 3000);
 
-  const myPres = () => ({ pid, nick: names[pid], host: !!(LS.get("nb4:last2") || {}).host, game: st.game, set: !!st.secret, guesses: st.guesses, replies: st.replies });
+  const myPres = () => ({ pid, nick: names[pid], host: !!(LS.get("nb4:last2") || {}).host, game: st.game, set: !!st.secret, guesses: st.guesses, replies: st.replies,
+    mv: st.mv || [], wd: st.wd || [], pick: st.pick || "baseball" });
 
   async function enterRoom(c, asHost){
     c = (c || "").toLowerCase();
@@ -632,6 +750,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     const host = asHost || (lastRoom.code === c && !!lastRoom.host);
     LS.set("nb4:last2", { code, pid, host });
     st = LS.get(`nb4:${code}:${pid}`) || { game: null, secret: "", guesses: [], replies: {} };
+    st.mv = st.mv || []; st.wd = st.wd || []; st.pick = GAMES[st.pick] ? st.pick : "baseball";
     names[pid] = nick();
     chatPrimedAt = joinedAt = Date.now(); lastReadT = Date.now() - 1;
     try { await netJoin(c); }
@@ -660,15 +779,17 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
       const g = p.game;
       if (g && typeof g.id === "string" && Array.isArray(g.order) && typeof g.t === "number" && (!newest || g.t > newest.t)) newest = g;
     }
+    const cleanGame = (n, id) => ({ id, t: n.t, kind: GAMES[n.kind] ? n.kind : "baseball",
+      order: n.order.filter(x => typeof x === "string").slice(0, 6), start: typeof n.start === "string" ? n.start.slice(0, 12) : "" });
     if (newest && (!st.game || newest.id !== st.game.id)){
-      st.game = { id: newest.id, t: newest.t, order: newest.order.slice(0, MAX).filter(x => typeof x === "string") };
-      st.secret = ""; st.guesses = []; st.replies = {}; entry = ""; changed = true;
+      st.game = cleanGame(newest, newest.id);
+      st.secret = ""; st.guesses = []; st.replies = {}; st.mv = []; st.wd = []; entry = ""; omGhost = null; changed = true;
     } else if (newest && newest.t > st.game.t){
-      st.game = { id: st.game.id, t: newest.t, order: newest.order.slice(0, MAX).filter(x => typeof x === "string") };
+      st.game = cleanGame(newest, st.game.id);
       changed = true;
     }
     // 비밀 숫자는 내 화면 밖으로 안 나간다. 판정 결과만 보낸다
-    if (st.game && st.secret && st.game.order.includes(pid)){
+    if (st.game && (st.game.kind || "baseball") === "baseball" && st.secret && st.game.order.includes(pid)){
       for (const p of peers){
         if (!p.game || p.game.id !== st.game.id || !st.game.order.includes(p.pid) || !Array.isArray(p.guesses)) continue;
         const mine = st.replies[p.pid] || [];
@@ -692,7 +813,8 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     const byPid = {};
     for (const p of peers) if (p.game && p.game.id === g.id) byPid[p.pid] = p;
     byPid[pid] = myPres();
-    const allSet = g.order.every(x => byPid[x] && byPid[x].set);
+    const isBB = (g.kind || "baseball") === "baseball";
+    const allSet = isBB && g.order.every(x => byPid[x] && byPid[x].set);
     const sim = allSet ? simulate(g.order, byPid) : null;
     return { g, here, present, leader, byPid, allSet, sim };
   }
@@ -739,7 +861,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 
   function show(){
     $("btnChat").hidden = mode !== "online";
-    placeFab();
+    requestAnimationFrame(placeFab);
     $("lobby").hidden = mode !== "lobby";
     $("game").hidden = mode === "lobby";
     $("btnLeave").hidden = mode === "lobby";
@@ -751,6 +873,12 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     $("codeChip").textContent = code.toUpperCase();
     const v = view(), g = v.g, sim = v.sim;
     curLeader = v.leader;
+    const kind = gameKind(v);
+    $("bbArea").hidden = kind !== "baseball"; $("omArea").hidden = kind !== "omok"; $("wdArea").hidden = kind !== "word";
+    $("omDock").hidden = true; $("wdDock").hidden = true;
+    renderPicker(v);
+    if (kind === "omok"){ $("dock").hidden = true; return showOmok(v); }
+    if (kind === "word"){ $("dock").hidden = true; return showWord(v); }
     const inGame = g && g.order.includes(pid);
     const isLeader = v.leader === pid;
 
@@ -803,21 +931,14 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 
     // 전광판
     $("btnAgain").hidden = true;
-    const showStart = isLeader && (!g || (sim && sim.state === "over"));
-    const n = Math.min(v.present.length, MAX);
-    $("btnStart").hidden = !showStart;
     const awayIn = g && sim && sim.state !== "over" ? g.order.filter(x => !v.here.has(x)) : (g && !v.allSet ? g.order.filter(x => !v.here.has(x)) : []);
     $("btnKick").hidden = !(isLeader && awayIn.length && g.order.length - awayIn.length >= 2);
     $("btnKick").textContent = `자리 비운 ${awayIn.map(nm).join(", ")} 님 빼고 계속`;
-    $("btnStart").disabled = v.present.length < 2;
-    $("btnStart").textContent = g ? `${n}명으로 새 게임` : `${n}명으로 게임 시작`;
-    $("startNote").hidden = !showStart;
-    $("startNote").textContent = v.present.length < 2 ? "친구가 들어오면 시작할 수 있어요. 위 코드를 알려 주세요." : (v.present.length > MAX ? `최대 ${MAX}명 — 나머지는 관전해요` : "던지는 순서는 무작위로 정해져요");
     setSecret(inGame && !!st.secret);
 
     if (roomNote){ setBoard("연결", roomNote); return renderDock(false); }
     if (!g){
-      setBoard("대기실", v.present.length < 2 ? "친구들을 기다리는 중" : (isLeader ? "다 모였으면 시작!" : `${nm(v.leader)} 님이 시작하길 기다리는 중`));
+      setBoard("숫자야구", v.present.length < 2 ? "친구들을 기다리는 중" : (isLeader ? "다 모였으면 시작!" : `${nm(v.leader)} 님이 시작하길 기다리는 중`));
       return renderDock(false);
     }
     if (!inGame){ setBoard("관전", "이번 판은 구경해요. 다음 판에 같이 해요"); return renderDock(false); }
@@ -832,7 +953,6 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
       else if (sim.winner){ txt = `${nm(sim.winner)} 님 승리`; cls = "lose"; }
       else txt = `무승부 — ${sim.draw.map(nm).join(", ")}`;
       setBoard("경기 종료", txt, cls);
-      if (!isLeader) $("startNote").hidden = false, $("startNote").textContent = `방장 ${nm(v.leader)} 님이 새 게임을 열 수 있어요`;
       if (seen.ended !== g.id){
         seen.ended = g.id;
         if (fresh.length){            // 지금 막 끝난 판만 축하(다시 들어온 경우는 생략)
@@ -858,6 +978,8 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   }
 
   function showSolo(){
+    $("picker").hidden = true; $("bbArea").hidden = false; $("omArea").hidden = true; $("wdArea").hidden = true;
+    $("omDock").hidden = true; $("wdDock").hidden = true;
     $("players").innerHTML = `<div class="pl me"><div class="nm">${esc(nick())} · 나</div><div class="stt">VS 컴퓨터</div></div>`;
     $("btnStart").hidden = true; $("startNote").hidden = true; $("secretBox").hidden = true;
     $("feedNote").textContent = "혼자 연습";
@@ -876,6 +998,14 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   nextCall = function(){
     const it = callQ[0];
     if (it && it.finalKind){ callQ.shift(); return showFinal(it.finalKind, it.finalText); }
+    if (it && it.html){
+      callQ.shift(); callBusy = true;
+      $("call").className = "call" + (it.shake ? " shake" : "");
+      $("call").innerHTML = `<div class="call-card">${it.html}<div class="tap">눌러서 닫기</div></div>`;
+      $("call").hidden = false;
+      clearTimeout(callTimer); callTimer = setTimeout(nextCall, it.ms || 1500);
+      return;
+    }
     return _next();
   };
 
@@ -929,13 +1059,18 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   $("btnPeek").onclick = () => { peek = !peek; $("btnPeek").textContent = peek ? "숨기기" : "보기"; show(); };
   $("btnSound").onclick = () => { soundOn = !soundOn; LS.set("nb4:sound", soundOn); updSoundBtn(); };
   $("btnStart").onclick = () => {
-    const v = view();
-    if (v.leader !== pid || v.present.length < 2) return;
-    const order = shuffle(v.present).slice(0, MAX);
-    st.game = { id: rid(6), t: Math.max(Date.now(), (st.game ? st.game.t : 0) + 1), order };
-    st.secret = ""; st.guesses = []; st.replies = {}; entry = "";
+    const v = view(), kind = GAMES[st.pick] ? st.pick : "baseball", spec = GAMES[kind];
+    if (v.leader !== pid || v.present.length < spec.min) return;
+    const order = shuffle(v.present).slice(0, spec.max);
+    st.game = { id: rid(6), t: Math.max(Date.now(), (st.game ? st.game.t : 0) + 1), order, kind,
+      start: kind === "word" ? WORD_STARTS[Math.floor(Math.random() * WORD_STARTS.length)] : "" };
+    st.secret = ""; st.guesses = []; st.replies = {}; st.mv = []; st.wd = []; entry = ""; omGhost = null;
     save(); push(); show();
   };
+  $("gchips").addEventListener("click", e => {
+    const b = e.target.closest("button[data-k]"); if (!b || b.disabled || curLeader !== pid) return;
+    st.pick = b.dataset.k; save(); push(); show();
+  });
   $("btnLeave").onclick = () => {
     $("chatSheet").hidden = true; $("actSheet").hidden = true;
     netStop(); mode = "lobby"; peers = []; entry = ""; callQ.length = 0; $("call").hidden = true; callBusy = false;
@@ -1001,8 +1136,9 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3200);
   }
   function placeFab(){
-    const d = $("dock");
-    $("btnChat").style.bottom = d.hidden ? "" : `calc(${d.offsetHeight + 12}px)`;
+    const d = ["dock", "omDock", "wdDock"].map($).find(x => !x.hidden);
+    $("btnChat").style.bottom = d ? `${d.offsetHeight + 12}px` : "";
+    document.body.style.paddingBottom = d ? `${d.offsetHeight + 20}px` : "24px";
   }
   function openChat(){
     $("chatSheet").hidden = false; $("chatSheet").dataset.scrolled = "";
@@ -1067,6 +1203,303 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
       ${bans.length ? `<p class="muted">내보낸 사람</p><div class="ban-list">${bans.map(y => `<div class="ban-row"><span>${esc(nm(y))}</span><button data-unban="${y}">다시 받기</button></div>`).join("")}</div>` : ""}
       <button class="btn sub" data-close>취소</button>`);
   });
+
+  /* ════════ 게임 목록 ════════ */
+  const GAMES = {
+    baseball: { name: "숫자야구", min: 2, max: 4, icon: '<div class="ball"></div>' },
+    omok:     { name: "오목",     min: 2, max: 2, icon: '<div class="stone2"><i></i><i></i></div>' },
+    word:     { name: "끝말잇기", min: 2, max: 6, icon: '<span class="wd">끝말</span>' },
+  };
+  const WORD_STARTS = ["기차","사과","바다","하늘","나무","우유","가방","구름","노래","자동차","고양이","토끼","컴퓨터","도서관","운동장","비행기","주전자","바나나","김치","소나무","해바라기","무지개","눈사람","선풍기"];
+  function pickOf(v){
+    const k = v.leader === pid ? st.pick : ((peers.find(p => p.pid === v.leader) || {}).pick);
+    return GAMES[k] ? k : "baseball";
+  }
+  function kindOf(g){ return g ? (GAMES[g.kind] ? g.kind : "baseball") : null; }
+  function kindOver(v){
+    const k = kindOf(v.g);
+    if (!k) return true;
+    if (k === "omok") return omSim(v).over;
+    if (k === "word") return wdSim(v).over;
+    return !!(v.sim && v.sim.state === "over");
+  }
+  function gameKind(v){ return v.g ? kindOf(v.g) : pickOf(v); }
+  function renderPicker(v){
+    const g = v.g, over = !g || kindOver(v);
+    $("picker").hidden = !over;
+    if (!over) return;
+    const isL = v.leader === pid, pick = pickOf(v), spec = GAMES[pick];
+    $("gchips").innerHTML = Object.entries(GAMES).map(([k, x]) =>
+      `<button class="gchip${k === pick ? " sel" : ""}" data-k="${k}" ${isL ? "" : "disabled"}><span class="gi">${x.icon}</span><span class="gn">${x.name}</span><span class="gp">${x.min === x.max ? x.min + "명" : x.min + "~" + x.max + "명"}</span></button>`).join("");
+    const n = Math.min(v.present.length, spec.max);
+    $("btnStart").hidden = !isL;
+    $("btnStart").disabled = v.present.length < spec.min;
+    $("btnStart").textContent = `${n}명으로 ${spec.name} ${g ? "새 게임" : "시작"}`;
+    $("startNote").textContent = !isL ? `방장 ${nm(v.leader)} 님이 게임을 골라 시작해요 · 지금: ${spec.name}`
+      : v.present.length < spec.min ? `${spec.min}명부터 할 수 있어요. 위 코드를 친구에게 알려 주세요.`
+      : v.present.length > spec.max ? `${spec.name}은 ${spec.max}명까지 — 나머지는 구경해요 (무작위)`
+      : "순서는 무작위로 정해져요";
+  }
+  function renderPlayersBy(v, statusOf){
+    const g = v.g, isL = v.leader === pid;
+    const list = g ? [...g.order, ...v.present.filter(x => !g.order.includes(x))] : v.present;
+    $("players").innerHTML = list.map(x => {
+      let [s, cls, seat] = statusOf(x);
+      cls = (cls || "") + (x === pid ? " me" : "") + (isL && x !== pid ? " tappable" : "");
+      return `<div class="pl ${cls}" data-pid="${x}"><div class="nm">${seat || ""}${esc(nm(x))}${x === pid ? " · 나" : ""}</div><div class="stt">${s}</div></div>`;
+    }).join("");
+  }
+  const fillIdx = (arr, i, val) => { const a = arr.slice(); a[i] = val; return Array.from({ length: a.length }, (_, k) => a[k] ?? null); };
+
+  /* ════════ 오목 ════════
+     흑 = order[0], 백 = order[1]. 각자 자기 수를 mv[내 몇 번째 수] 에 [줄, 칸] 으로 올린다.
+     모두가 같은 규칙으로 판을 다시 쌓으므로 누가 끊겼다 들어와도 같은 판이 나온다. */
+  const N = 15;
+  let omGhost = null;
+  const omSeen = { gid: null, k: 0, ended: false };
+  function five(board, r, c, col){
+    for (const [dr, dc] of [[0,1],[1,0],[1,1],[1,-1]]){
+      const cells = [[r, c]];
+      for (const s of [1, -1]){
+        let rr = r + dr*s, cc = c + dc*s;
+        while (rr >= 0 && rr < N && cc >= 0 && cc < N && board[rr*N+cc] === col){ cells.push([rr, cc]); rr += dr*s; cc += dc*s; }
+      }
+      if (cells.length >= 5) return cells;
+    }
+    return null;
+  }
+  function omSim(v){
+    const g = v.g, order = g.order, board = Array(N*N).fill(-1), moves = [];
+    if (order.length < 2) return { over: true, winner: order[0] || null, board, moves, forfeit: true };
+    for (let k = 0; k < N*N; k++){
+      const P = order[k % 2], i = k >> 1;
+      const m = v.byPid[P] && Array.isArray(v.byPid[P].mv) ? v.byPid[P].mv[i] : null;
+      if (!Array.isArray(m) || !(m[0] >= 0 && m[0] < N && m[1] >= 0 && m[1] < N) || board[m[0]*N+m[1]] !== -1)
+        return { over: false, turn: P, idx: i, k, board, moves };
+      board[m[0]*N+m[1]] = k % 2; moves.push({ P, r: m[0], c: m[1], k });
+      const w = five(board, m[0], m[1], k % 2);
+      if (w) return { over: true, winner: P, line: w, board, moves };
+    }
+    return { over: true, winner: null, board, moves };
+  }
+  const colName = c => "ABCDEFGHJKLMNOP"[c], STARS = new Set([3*N+3, 3*N+11, 7*N+7, 11*N+3, 11*N+11]);
+  function showOmok(v){
+    const g = v.g;
+    if (!g){
+      renderPlayersBy(v, () => ["대기실"]);
+      $("omInn").textContent = "오목"; $("omMsg").textContent = v.present.length < 2 ? "친구를 기다리는 중" : "방장이 시작하면 바로 둬요";
+      $("omMsg").className = "msg"; drawGoban(null, false); $("omNote").textContent = "흑·백은 시작할 때 무작위로 정해져요"; return;
+    }
+    const s = omSim(v), [Bk, Wh] = g.order, inGame = g.order.includes(pid);
+    const myTurn = !s.over && s.turn === pid;
+    if (!myTurn) omGhost = null;
+    renderPlayersBy(v, x => {
+      const seat = x === Bk ? '<span class="seat bk"></span>' : x === Wh ? '<span class="seat wh"></span>' : "";
+      if (!g.order.includes(x)) return ["구경", "", ""];
+      if (!v.here.has(x) && !s.over) return ["연결 끊김", "", seat];
+      if (s.over) return s.winner === x ? ["승리", "win", seat] : s.winner ? ["패배", "out", seat] : ["무승부", "", seat];
+      return s.turn === x ? ["둘 차례", "turn", seat] : ["대기", "", seat];
+    });
+    // 새로 놓인 돌: 소리·애니메이션
+    let fresh = false;
+    if (omSeen.gid !== g.id){ omSeen.gid = g.id; omSeen.k = s.moves.length; omSeen.ended = s.over; }
+    else if (s.moves.length > omSeen.k){ omSeen.k = s.moves.length; fresh = true; thud(0, .55); if (myTurn) buzz(30); }
+    drawGoban(s, myTurn, fresh);
+    const turnNo = s.moves.length + (s.over ? 0 : 1);
+    $("omInn").textContent = s.over ? "대국 종료" : `${turnNo}수째`;
+    $("omMsg").className = "msg";
+    if (s.over){
+      const t = s.winner === pid ? "승리! 오목 완성" : s.winner ? `${nm(s.winner)} 님 승리` : "무승부 — 판이 가득 찼어요";
+      $("omMsg").textContent = s.forfeit && s.winner ? `${nm(s.winner)} 님 승리 (상대가 나감)` : t;
+      $("omMsg").className = "msg" + (s.winner === pid ? " win" : s.winner ? " lose" : "");
+      if (!omSeen.ended){
+        omSeen.ended = true;
+        if (inGame){ callQ.push({ finalKind: s.winner === pid ? "win" : "lose", finalText: s.winner === pid ? "승리! 오목 완성" : s.winner ? `${nm(s.winner)} 님 승리` : "무승부" }); if (!callBusy) nextCall(); }
+        else if (s.winner) confetti(80);
+      }
+      $("omNote").textContent = "";
+      return;
+    }
+    const me = g.order.indexOf(pid);
+    $("omNote").textContent = inGame ? `나는 ${me === 0 ? "흑 (먼저)" : "백"}` : "구경 중이에요";
+    if (myTurn){
+      $("omMsg").textContent = "내 차례 — 둘 곳을 누르세요";
+      $("omDock").hidden = false;
+      $("omDockLabel").textContent = omGhost ? `${me === 0 ? "흑" : "백"} · ${colName(omGhost[1])}${N - omGhost[0]} 에 둘까요?` : "판에서 둘 곳을 먼저 누르세요";
+      $("omPlace").disabled = !omGhost; $("omCancel").disabled = !omGhost;
+    } else {
+      $("omMsg").textContent = !v.here.has(s.turn) ? `${nm(s.turn)} 님 연결이 끊겼어요. 기다리거나 방장이 내보낼 수 있어요` : `${nm(s.turn)} 님이 두는 중`;
+    }
+  }
+  function drawGoban(s, myTurn, fresh){
+    const board = s ? s.board : Array(N*N).fill(-1);
+    const last = s && s.moves.length ? s.moves[s.moves.length - 1] : null;
+    const win = new Set(s && s.line ? s.line.map(([r, c]) => r*N+c) : []);
+    let h = "";
+    for (let i = 0; i < N*N; i++){
+      const r = (i / N) | 0, c = i % N, b = board[i];
+      let stone = "";
+      if (b >= 0){
+        const isLast = last && last.r === r && last.c === c;
+        stone = `<span class="stone ${b ? "w" : "b"}${isLast ? " last" : ""}${isLast && fresh ? " drop" : ""}${win.has(i) ? " win" : ""}"></span>`;
+      } else if (omGhost && omGhost[0] === r && omGhost[1] === c){
+        stone = `<span class="stone ghost ${s && s.moves.length % 2 ? "w" : "b"}"></span>`;
+      }
+      h += `<button class="cell r${r} c${c}" data-i="${i}" aria-label="${colName(c)}${N - r}">${STARS.has(i) ? '<span class="star"></span>' : ""}${stone}</button>`;
+    }
+    $("goban").innerHTML = h;
+    $("goban").className = "goban" + (myTurn ? " mine" : "");
+  }
+  $("goban").addEventListener("click", e => {
+    const cell = e.target.closest(".cell"); if (!cell || mode !== "online") return;
+    const v = view(); if (kindOf(v.g) !== "omok") return;
+    const s = omSim(v); if (s.over || s.turn !== pid) return;
+    const i = +cell.dataset.i; if (s.board[i] !== -1) return;
+    omGhost = [(i / N) | 0, i % N]; sfx.key(); show();
+  });
+  $("omCancel").onclick = () => { omGhost = null; show(); };
+  $("omPlace").onclick = () => {
+    const v = view(); if (!omGhost || kindOf(v.g) !== "omok") return;
+    const s = omSim(v); if (s.over || s.turn !== pid || s.board[omGhost[0]*N+omGhost[1]] !== -1){ omGhost = null; return show(); }
+    st.mv = fillIdx(st.mv || [], s.idx, omGhost); omGhost = null;
+    save(); push(); show();
+  };
+
+  /* ════════ 끝말잇기 ════════
+     회마다 살아 있는 사람이 순서대로 한 단어씩. 각자 wd[회] 에 {w: 단어} 또는 {x: "time"|"give"} 를 올린다.
+     시간 초과는 그 사람 폰이 스스로 올린다(시계가 폰마다 달라서 남이 판정하지 않음). */
+  const WORD_MS = 20000;
+  const wdSeen = { gid: null, n: 0, ended: false };
+  const turnSeenAt = {};
+  let wdLive = null;
+  function dueum(ch){
+    const code = ch.charCodeAt(0) - 0xAC00;
+    if (code < 0 || code > 11171) return null;
+    const cho = Math.floor(code / 588), jung = Math.floor((code % 588) / 28), jong = code % 28;
+    const yi = [2, 6, 7, 12, 17, 20];               // ㅑ ㅕ ㅖ ㅛ ㅠ ㅣ
+    let to = null;
+    if (cho === 5) to = yi.includes(jung) ? 11 : 2; // ㄹ → ㅇ / ㄴ
+    else if (cho === 2 && yi.includes(jung)) to = 11; // ㄴ → ㅇ
+    return to === null ? null : String.fromCharCode(0xAC00 + to*588 + jung*28 + jong);
+  }
+  function startsFor(word){ const ch = word[word.length - 1]; const d = dueum(ch); return d ? [ch, d] : [ch]; }
+  function wordProblem(w, prev, used){
+    if (!/^[가-힣]{2,12}$/.test(w)) return "한글 2글자 이상으로 써 주세요";
+    const st8 = startsFor(prev);
+    if (!st8.includes(w[0])) return `'${st8.join("' 또는 '")}'(으)로 시작해야 해요`;
+    if (used.has(w)) return "이미 나온 단어예요";
+    return null;
+  }
+  function wdSim(v){
+    const g = v.g, start = g.start || "기차";
+    let alive = g.order.slice();
+    const chain = [start], used = new Set([start]), log = [{ start: true, w: start }];
+    if (alive.length < 2) return { over: true, winner: alive[0] || null, chain, log, alive, forfeit: true };
+    for (let r = 0; r < 200; r++){
+      for (const P of alive.slice()){
+        if (!alive.includes(P)) continue;
+        const e = v.byPid[P] && Array.isArray(v.byPid[P].wd) ? v.byPid[P].wd[r] : null;
+        if (!e) return { over: false, turn: P, round: r, chain, log, alive };
+        const prev = chain[chain.length - 1];
+        if (e.x || typeof e.w !== "string" || wordProblem(e.w, prev, used)){
+          alive = alive.filter(x => x !== P);
+          log.push({ P, r, out: e.x === "give" ? "포기" : e.x === "time" ? "시간 초과" : "규칙 위반" });
+        } else { chain.push(e.w); used.add(e.w); log.push({ P, r, w: e.w }); }
+        if (alive.length <= 1) return { over: true, winner: alive[0] || null, chain, log, alive };
+      }
+    }
+    return { over: true, winner: null, chain, log, alive };
+  }
+  const wordHtml = (w, cls = "last") => w ? `${esc(w.slice(0, -1))}<span class="${cls}">${esc(w.slice(-1))}</span>` : "";
+  function showWord(v){
+    const g = v.g;
+    $("wdErr").textContent = "";
+    if (!g){
+      renderPlayersBy(v, () => ["대기실"]);
+      $("wdInn").textContent = "끝말잇기"; $("wdNow").innerHTML = "끝말잇기"; $("wdMsg").textContent = v.present.length < 2 ? "친구를 기다리는 중" : "방장이 시작하면 첫 단어가 나와요";
+      $("wdTimer").hidden = true; $("wdFeed").innerHTML = '<li class="empty">시작하면 단어가 여기에 쌓여요</li>'; $("wdCount").textContent = ""; wdLive = null; return;
+    }
+    const s = wdSim(v), inGame = g.order.includes(pid);
+    renderPlayersBy(v, x => {
+      const seat = g.order.includes(x) ? `<span class="seat">${g.order.indexOf(x) + 1}</span>` : "";
+      if (!g.order.includes(x)) return ["구경", "", ""];
+      if (s.over) return s.winner === x ? ["승리", "win", seat] : ["탈락", "out", seat];
+      if (!s.alive.includes(x)) return ["탈락", "out", seat];
+      if (!v.here.has(x)) return ["연결 끊김", "", seat];
+      return s.turn === x ? ["단어 생각 중", "turn", seat] : ["대기", "", seat];
+    });
+    // 새 기록: 단어는 튀어나오게, 탈락은 크게
+    let freshFrom = s.log.length;
+    if (wdSeen.gid !== g.id){ wdSeen.gid = g.id; wdSeen.n = s.log.length; wdSeen.ended = s.over; }
+    else if (s.log.length > wdSeen.n){
+      freshFrom = wdSeen.n;
+      for (const e of s.log.slice(wdSeen.n)){
+        if (e.out){
+          queueCallHtml(`<div class="who">${esc(nm(e.P))}${e.P === pid ? " (나)" : ""}</div><div class="bigword bad">탈락!</div><div class="muted">${e.out}</div>`, true);
+          sfx.out(); if (e.P === pid) buzz(200);
+        } else { tone(660, .08, "triangle", .08); tone(990, .1, "triangle", .07, .07); }
+      }
+      wdSeen.n = s.log.length;
+    }
+    const lastW = s.chain[s.chain.length - 1];
+    $("wdNow").innerHTML = wordHtml(lastW);
+    if (freshFrom < s.log.length){ $("wdNow").classList.remove("pop"); void $("wdNow").offsetWidth; $("wdNow").classList.add("pop"); }
+    $("wdCount").textContent = `${s.chain.length - 1}개 이어짐`;
+    $("wdFeed").innerHTML = s.log.slice().reverse().map((e, ri) => {
+      const idx = s.log.length - 1 - ri, fr = idx >= freshFrom ? " fresh" : "";
+      if (e.start) return `<li class="wrow start"><span class="wn">시작</span><span class="ww">${wordHtml(e.w)}</span></li>`;
+      if (e.out) return `<li class="wrow out${fr}"><span class="wn">${esc(nm(e.P))}</span><span class="ww">${e.out} — 탈락</span></li>`;
+      return `<li class="wrow${e.P === pid ? " mine" : ""}${fr}"><span class="wn">${esc(nm(e.P))}</span><span class="ww">${wordHtml(e.w)}</span></li>`;
+    }).join("");
+    if (s.over){
+      wdLive = null; $("wdTimer").hidden = true;
+      $("wdInn").textContent = "게임 끝";
+      $("wdMsg").textContent = s.winner === pid ? "승리! 끝까지 살아남았어요" : s.winner ? `${nm(s.winner)} 님 승리` : "무승부";
+      if (!wdSeen.ended){
+        wdSeen.ended = true;
+        if (inGame){ callQ.push({ finalKind: s.winner === pid ? "win" : "lose", finalText: s.winner === pid ? "승리! 끝말잇기 최후의 1인" : s.winner ? `${nm(s.winner)} 님 승리` : "무승부" }); if (!callBusy) nextCall(); }
+      }
+      return;
+    }
+    const key = `${g.id}:${s.round}:${s.turn}`;
+    if (!turnSeenAt[key]) turnSeenAt[key] = Date.now();
+    const myTurn = s.turn === pid;
+    wdLive = { key, at: turnSeenAt[key], myTurn, round: s.round, prev: lastW, used: new Set(s.chain), away: !v.here.has(s.turn) };
+    $("wdInn").textContent = `${s.round + 1}바퀴 · 남은 ${s.alive.length}명`;
+    const need = startsFor(lastW).map(x => `'${x}'`).join(" 또는 ");
+    $("wdMsg").textContent = myTurn ? `내 차례! ${need}(으)로 시작` : !inGame || !s.alive.includes(pid) ? `${nm(s.turn)} 님 차례 · 구경 중` : `${nm(s.turn)} 님 차례 · 다음 글자 ${need}`;
+    $("wdTimer").hidden = false; tickWord();
+    if (myTurn){
+      $("wdDock").hidden = false;
+      $("wdDockLabel").textContent = `${need}(으)로 시작하는 단어`;
+      if (document.activeElement !== $("wdInput")) setTimeout(() => { try { $("wdInput").focus({ preventScroll: true }); } catch {} }, 50);
+    }
+  }
+  function queueCallHtml(html, shake){ callQ.push({ html, shake, ms: 1500 }); if (!callBusy) nextCall(); }
+  function submitWord(entry){
+    const v = view(); if (kindOf(v.g) !== "word") return;
+    const s = wdSim(v); if (s.over || s.turn !== pid) return;
+    st.wd = fillIdx(st.wd || [], s.round, entry);
+    save(); push(); show();
+  }
+  function tickWord(){
+    if (!wdLive || mode !== "online"){ return; }
+    const left = Math.max(0, WORD_MS - (Date.now() - wdLive.at));
+    $("wdBar").style.width = (left / WORD_MS * 100) + "%";
+    $("wdBar").className = "timer-bar" + (left < 6000 ? " hurry" : "");
+    $("wdSec").textContent = wdLive.away ? "연결 끊김" : Math.ceil(left / 1000) + "초";
+    if (wdLive.myTurn && left <= 0){ wdLive = null; submitWord({ x: "time" }); }
+  }
+  setInterval(tickWord, 200);
+  $("wdForm").addEventListener("submit", e => {
+    e.preventDefault();
+    if (!wdLive || !wdLive.myTurn) return;
+    const w = $("wdInput").value.replace(/\s+/g, "").trim();
+    const err = wordProblem(w, wdLive.prev, wdLive.used);
+    if (err){ $("wdErr").textContent = err; $("wdDock").classList.remove("shake"); void $("wdDock").offsetWidth; $("wdDock").classList.add("shake"); return; }
+    $("wdInput").value = ""; submitWord({ w });
+  });
+  $("wdGive").onclick = () => { if (wdLive && wdLive.myTurn) submitWord({ x: "give" }); };
 
   // ── 온라인 준비 확인 ──
   if (window.mqtt) netMsg("방을 만들고 위에 뜨는 코드를 친구들에게 알려 주세요.");
