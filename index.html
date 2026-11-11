@@ -192,6 +192,46 @@ details.rules ul{margin:10px 0 2px;padding-left:18px;display:grid;gap:6px;font-s
 .final.win .big{color:var(--stitch)}
 .final .btn{margin-top:6px}
 
+/* 채팅 */
+.fab{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:25;
+  width:54px;height:54px;border-radius:50%;background:var(--ink);color:#fff;font-size:22px;box-shadow:0 6px 18px rgba(0,0,0,.35);display:grid;place-items:center}
+.fab .badge{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;border-radius:11px;background:var(--stitch);color:#fff;font-size:12px;font-weight:900;display:grid;place-items:center;padding:0 6px}
+.sheet{position:fixed;inset:0;z-index:45;background:rgba(10,20,14,.5);display:flex;align-items:flex-end;justify-content:center}
+.sheet-in{width:100%;max-width:520px;background:var(--leather);border-radius:22px 22px 0 0;display:grid;gap:10px;
+  padding:14px max(14px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));animation:sheetin .22s ease-out}
+@keyframes sheetin{from{transform:translateY(40px);opacity:.4}}
+.sheet-h{display:flex;justify-content:space-between;align-items:center}
+.sheet-h h3{margin:0;font-family:var(--f-head);font-weight:400;font-size:19px}
+.sheet-h button{background:var(--leather2);border-radius:50%;width:34px;height:34px;font-size:15px}
+.chat-list{list-style:none;margin:0;padding:4px 2px;display:flex;flex-direction:column;gap:6px;height:min(52vh,420px);overflow-y:auto;overscroll-behavior:contain}
+.msg{max-width:82%;align-self:flex-start;display:grid;gap:2px}
+.msg .who{font-size:11.5px;color:var(--muted);font-weight:700;padding-left:6px}
+.msg .bub{background:#fff;border-radius:14px 14px 14px 4px;padding:8px 12px;font-size:15px;line-height:1.4;word-break:break-word;white-space:pre-wrap;box-shadow:0 1px 0 var(--line)}
+.msg.me{align-self:flex-end}
+.msg.me .who{text-align:right;padding-right:6px}
+.msg.me .bub{background:var(--stitch);color:#fff;border-radius:14px 14px 4px 14px;box-shadow:none}
+.msg.sys{align-self:center;max-width:100%}
+.msg.sys .bub{background:transparent;box-shadow:none;color:var(--muted);font-size:12.5px;padding:2px}
+.chat-empty{color:var(--muted);text-align:center;font-size:13px;margin:auto}
+.chat-form{display:grid;grid-template-columns:1fr auto;gap:8px}
+.chat-form .inp{font-size:16px;padding:11px 14px}
+.chat-form .btn{width:auto;padding:0 18px}
+.quick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.quick::-webkit-scrollbar{display:none}
+.quick button{flex:0 0 auto;background:var(--leather2);border-radius:999px;padding:7px 12px;font-size:13.5px;font-weight:700}
+.toast{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:46;max-width:min(420px,calc(100% - 28px));
+  background:var(--ink);color:#fff;border-radius:14px;padding:9px 14px;font-size:14px;box-shadow:0 8px 20px rgba(0,0,0,.3);animation:toastin .25s ease-out;cursor:pointer}
+.toast b{color:var(--s);margin-right:6px}
+@keyframes toastin{from{transform:translate(-50%,-14px);opacity:0}}
+/* 강퇴 */
+.pl.tappable{cursor:pointer}
+.pl.tappable::after{content:"⋯";position:absolute;top:4px;right:8px;color:var(--muted);font-weight:900}
+.kick-who{font-size:15px;line-height:1.5}
+.kick-who b{font-size:18px}
+.btn.danger{background:var(--o);color:#fff;box-shadow:0 4px 0 #a32a1e}
+.ban-list{display:grid;gap:6px}
+.ban-row{display:flex;justify-content:space-between;align-items:center;background:var(--leather2);border-radius:10px;padding:8px 10px;font-size:14px}
+.ban-row button{background:#fff;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700}
 canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
 </style>
@@ -269,6 +309,20 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 </div>
 
 <div class="call" id="call" hidden></div>
+<button class="fab" id="btnChat" aria-label="채팅" hidden><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg><span class="badge" id="chatBadge" hidden></span></button>
+<div class="sheet" id="chatSheet" hidden>
+  <div class="sheet-in">
+    <div class="sheet-h"><h3>채팅</h3><button id="chatClose" aria-label="닫기">✕</button></div>
+    <ol class="chat-list" id="chatList"></ol>
+    <div class="quick" id="quick"></div>
+    <form class="chat-form" id="chatForm">
+      <input class="inp" id="chatInput" type="text" maxlength="200" placeholder="메시지 보내기" autocomplete="off">
+      <button class="btn main" type="submit">보내기</button>
+    </form>
+  </div>
+</div>
+<div class="sheet" id="actSheet" hidden><div class="sheet-in" id="actIn"></div></div>
+<div class="toast" id="toast" hidden></div>
 <canvas id="fx"></canvas>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.10.1/mqtt.min.js"></script>
@@ -459,7 +513,8 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
      비밀 숫자는 절대 안 올라간다. 올라가는 건 이름·던진 숫자·판정 결과뿐. */
   const BROKERS = ["wss://broker.hivemq.com:8884/mqtt", "wss://broker.emqx.io:8084/mqtt"];
   const TOPIC = "nb4s-ayn7/";
-  const net = { clients: [], base: null, pres: {}, online: {}, seq: 0, code: null, lastErr: "" };
+  const net = { clients: [], base: null, pres: {}, online: {}, chat: {}, ban: { seq: 0, list: [] }, seq: 0, code: null, lastErr: "" };
+  const banned = x => net.ban.list.includes(x);
   window.__nbNet = net;   // 시험용
   window.__nbDbg = () => { const v = view(); return { entry, guesses: st.guesses, order: st.game && st.game.order, pid, sim: v.sim && { state: v.sim.state, who: v.sim.who, round: v.sim.round } }; };
   const netMsg = (t, warn) => { $("netNote").textContent = t; $("netNote").className = "muted" + (warn ? " warn" : ""); };
@@ -475,16 +530,32 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     el.title = on ? "연결됨" : "다시 연결 중";
     el.className = "chip conn" + (on ? " ok" : " bad");
   }
-  const isOnline = x => x === pid || Object.values(net.online[x] || {}).some(v => v === "1");
+  const isOnline = x => x === pid || !banned(x) && Object.values(net.online[x] || {}).some(v => v === "1");
 
   let syncQueued = false;
-  function queueSync(){ if (syncQueued) return; syncQueued = true; setTimeout(() => { syncQueued = false; if (Object.keys(net.pres).length) roomNote = ""; peers = Object.entries(net.pres).filter(([k]) => k !== pid).map(([, v]) => v.p); sync(); }, 30); }
+  function queueSync(){ if (syncQueued) return; syncQueued = true; setTimeout(() => {
+    syncQueued = false;
+    if (mode !== "online") return;
+    if (banned(pid)) return kickedOut();
+    if (Object.keys(net.pres).length) roomNote = "";
+    peers = Object.entries(net.pres).filter(([k]) => k !== pid && !banned(k)).map(([, v]) => v.p);
+    sync();
+  }, 30); }
 
   function onMessage(bi, topic, payload){
     const rest = topic.slice(net.base.length);
     const [kind, who] = rest.split("/");
-    if (!who || who === pid && kind === "p") return;      // 내 상태는 내가 제일 최신
     const text = payload.toString();
+    if (kind === "ban"){                                   // 내보낸 사람 목록(방 전체 공통)
+      try { const m = JSON.parse(text || "{}"); if (Array.isArray(m.list) && typeof m.seq === "number" && m.seq > net.ban.seq){ net.ban = { seq: m.seq, list: m.list.filter(x => typeof x === "string") }; queueSync(); } } catch {}
+      return;
+    }
+    if (kind === "c"){                                     // 채팅: 보낸 사람마다 최근 글 묶음
+      if (!who) return;
+      try { const m = JSON.parse(text || "{}"); if (Array.isArray(m.m) && typeof m.seq === "number" && (!net.chat[who] || m.seq > net.chat[who].seq)){ net.chat[who] = m; onChat(); } } catch {}
+      return;
+    }
+    if (!who || who === pid && kind === "p") return;      // 내 상태는 내가 제일 최신
     if (kind === "p"){
       if (!text) return;
       try {
@@ -502,7 +573,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   function netJoin(c){
     return new Promise((resolve, reject) => {
       if (!window.mqtt){ reject({ type: "no-lib" }); return; }
-      net.base = TOPIC + c + "/"; net.code = c; net.pres = {}; net.online = {};
+      net.base = TOPIC + c + "/"; net.code = c; net.pres = {}; net.online = {}; net.chat = {}; net.ban = { seq: 0, list: [] };
       let done = false;
       const fin = e => { if (done) return; done = true; e ? reject(e) : resolve(); };
       setTimeout(() => fin(anyLive() ? null : { type: "timeout" }), 12000);
@@ -562,6 +633,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     LS.set("nb4:last2", { code, pid, host });
     st = LS.get(`nb4:${code}:${pid}`) || { game: null, secret: "", guesses: [], replies: {} };
     names[pid] = nick();
+    chatPrimedAt = joinedAt = Date.now(); lastReadT = Date.now() - 1;
     try { await netJoin(c); }
     catch (e){
       netStop();
@@ -666,6 +738,8 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   }
 
   function show(){
+    $("btnChat").hidden = mode !== "online";
+    placeFab();
     $("lobby").hidden = mode !== "lobby";
     $("game").hidden = mode === "lobby";
     $("btnLeave").hidden = mode === "lobby";
@@ -676,6 +750,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 
     $("codeChip").textContent = code.toUpperCase();
     const v = view(), g = v.g, sim = v.sim;
+    curLeader = v.leader;
     const inGame = g && g.order.includes(pid);
     const isLeader = v.leader === pid;
 
@@ -699,7 +774,8 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
         } else s = "준비 완료";
       } else if (g) s = "관전";
       const seat = g && g.order.includes(x) ? `<span class="seat">${g.order.indexOf(x) + 1}</span>` : "";
-      return `<div class="pl${cls}"><div class="nm">${seat}${esc(nm(x))}${x===pid?" · 나":""}</div><div class="stt">${s}</div></div>`;
+      if (isLeader && x !== pid) cls += " tappable";
+      return `<div class="pl${cls}" data-pid="${x}"><div class="nm">${seat}${esc(nm(x))}${x===pid?" · 나":""}</div><div class="stt">${s}</div></div>`;
     }).join("");
 
     // 기록 + 새로 나온 판정 연출
@@ -861,9 +937,136 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     save(); push(); show();
   };
   $("btnLeave").onclick = () => {
+    $("chatSheet").hidden = true; $("actSheet").hidden = true;
     netStop(); mode = "lobby"; peers = []; entry = ""; callQ.length = 0; $("call").hidden = true; callBusy = false;
     show();
   };
+
+  /* ── 채팅 ──
+     각자 최근 30개를 자기 칸(c/<pid>)에 보관(retain) → 늦게 들어온 사람도 지난 대화를 본다 */
+  let curLeader = null, chatPrimedAt = Date.now(), lastReadT = 0, joinedAt = 0;
+  const QUICK = ["ㅋㅋㅋㅋ", "나이스!", "아깝다", "빨리 던져~", "한 판 더?", "GG"];
+  $("quick").innerHTML = QUICK.map(q => `<button type="button">${esc(q)}</button>`).join("");
+  function myChat(){ return LS.get(`nb4:chat:${code}:${pid}`) || []; }
+  function sendChat(text){
+    text = String(text || "").replace(/\s+/g, " ").trim().slice(0, 200);
+    if (!text || mode !== "online") return;
+    const list = [...myChat(), { t: Date.now(), x: text }].slice(-30);
+    LS.set(`nb4:chat:${code}:${pid}`, list);
+    net.chat[pid] = { seq: Date.now(), n: names[pid], m: list };
+    const msg = JSON.stringify(net.chat[pid]);
+    for (const cl of net.clients) if (cl.connected) cl.publish(net.base + "c/" + pid, msg, { retain: true, qos: 1 });
+    onChat();
+  }
+  function allMsgs(){
+    const out = [];
+    const mine = myChat();
+    if (mine.length) net.chat[pid] = net.chat[pid] || { seq: 0, n: names[pid], m: mine };
+    for (const [who, m] of Object.entries(net.chat)){
+      if (banned(who) && who !== pid) continue;
+      for (const it of (m.m || [])) if (it && typeof it.x === "string" && typeof it.t === "number")
+        out.push({ who, n: names[who] || String(m.n || "누군가").slice(0, 12), t: it.t, x: it.x.slice(0, 200) });
+    }
+    return out.sort((a, b) => a.t - b.t).slice(-120);
+  }
+  function renderChat(){
+    const list = allMsgs(), el = $("chatList");
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    el.innerHTML = list.length ? list.map(m => `<li class="msg${m.who === pid ? " me" : ""}">
+        ${m.who === pid ? "" : `<span class="who">${esc(m.n)}</span>`}<span class="bub">${esc(m.x)}</span></li>`).join("")
+      : '<li class="chat-empty">아직 대화가 없어요. 먼저 인사해 보세요!</li>';
+    if (atBottom || !$("chatSheet").dataset.scrolled){ el.scrollTop = el.scrollHeight; $("chatSheet").dataset.scrolled = "1"; }
+  }
+  function onChat(){
+    const list = allMsgs();
+    const others = list.filter(m => m.who !== pid);
+    const open = !$("chatSheet").hidden;
+    if (open){ lastReadT = Math.max(lastReadT, ...list.map(m => m.t), 0); renderChat(); }
+    const unread = others.filter(m => m.t > lastReadT).length;
+    $("chatBadge").hidden = !unread || open; $("chatBadge").textContent = unread > 9 ? "9+" : unread;
+    // 새로 온 메시지는 위에 잠깐 띄운다(들어온 직후 몰려오는 지난 대화는 제외)
+    const fresh = others.filter(m => m.t > chatPrimedAt);
+    if (fresh.length && !open && Date.now() - joinedAt > 2500){
+      const m = fresh[fresh.length - 1];
+      chatPrimedAt = m.t;
+      toast(m.n, m.x);
+      tone(990, .07, "sine", .06); tone(1320, .09, "sine", .05, .08);
+    } else if (fresh.length) chatPrimedAt = Math.max(chatPrimedAt, fresh[fresh.length - 1].t);
+  }
+  let toastTimer = null;
+  function toast(name, text){
+    const t = $("toast");
+    t.innerHTML = name ? `<b>${esc(name)}</b>${esc(text)}` : esc(text);
+    t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = "";
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3200);
+  }
+  function placeFab(){
+    const d = $("dock");
+    $("btnChat").style.bottom = d.hidden ? "" : `calc(${d.offsetHeight + 12}px)`;
+  }
+  function openChat(){
+    $("chatSheet").hidden = false; $("chatSheet").dataset.scrolled = "";
+    lastReadT = Math.max(lastReadT, ...allMsgs().map(m => m.t), 0);
+    renderChat(); onChat();
+    setTimeout(() => { try { $("chatInput").focus({ preventScroll: true }); } catch {} }, 60);
+  }
+  $("btnChat").onclick = openChat;
+  $("toast").onclick = () => { $("toast").hidden = true; if (mode === "online") openChat(); };
+  $("chatClose").onclick = () => { $("chatSheet").hidden = true; onChat(); };
+  $("chatSheet").addEventListener("click", e => { if (e.target === $("chatSheet")) $("chatClose").click(); });
+  $("chatForm").addEventListener("submit", e => { e.preventDefault(); sendChat($("chatInput").value); $("chatInput").value = ""; });
+  $("quick").addEventListener("click", e => { const b = e.target.closest("button"); if (b) sendChat(b.textContent); });
+
+  /* ── 강퇴 ──
+     방장이 선수 칩을 누르면 내보내기. 내보낸 목록(ban)을 방에 보관하고, 경기 순서에서도 뺀다.
+     같은 사람이 다른 브라우저(카톡 안 브라우저·크롬 등)로 들어와 두 번 찍힌 경우 정리용. */
+  function publishBan(list){
+    net.ban = { seq: Math.max(Date.now(), net.ban.seq + 1), list };
+    const msg = JSON.stringify(net.ban);
+    for (const cl of net.clients) if (cl.connected) cl.publish(net.base + "ban", msg, { retain: true, qos: 1 });
+  }
+  function kick(x){
+    if (curLeader !== pid || x === pid) return;
+    publishBan([...new Set([...net.ban.list, x])]);
+    if (st.game && st.game.order.includes(x)){
+      st.game = { id: st.game.id, t: Math.max(Date.now(), st.game.t + 1), order: st.game.order.filter(y => y !== x) };
+      save(); push();
+    }
+    delete net.pres[x];
+    sendChat(`[알림] ${nm(x)} 님을 내보냈어요`);
+    queueSync();
+  }
+  function unban(x){
+    if (curLeader !== pid) return;
+    publishBan(net.ban.list.filter(y => y !== x));
+    queueSync();
+  }
+  function kickedOut(){
+    const c = code;
+    netStop(); mode = "lobby"; peers = []; entry = ""; callQ.length = 0; $("call").hidden = true; callBusy = false;
+    $("chatSheet").hidden = true; $("actSheet").hidden = true;
+    LS.set("nb4:last2", {}); $("btnResume").hidden = true;
+    show();
+    netMsg(`방장이 방 ${c.toUpperCase()} 에서 내보냈어요.`, true);
+  }
+  function openAct(html){ $("actIn").innerHTML = html; $("actSheet").hidden = false; }
+  $("actSheet").addEventListener("click", e => {
+    if (e.target === $("actSheet") || e.target.closest("[data-close]")) { $("actSheet").hidden = true; return; }
+    const k = e.target.closest("[data-kick]"); if (k){ kick(k.dataset.kick); $("actSheet").hidden = true; return; }
+    const u = e.target.closest("[data-unban]"); if (u){ unban(u.dataset.unban); $("actSheet").hidden = true; }
+  });
+  $("players").addEventListener("click", e => {
+    const el = e.target.closest(".pl.tappable"); if (!el || curLeader !== pid) return;
+    const x = el.dataset.pid, v = view();
+    const away = !v.here.has(x), inG = v.g && v.g.order.includes(x);
+    const bans = net.ban.list.filter(y => y !== x);
+    openAct(`<div class="sheet-h"><h3>선수 관리</h3><button data-close aria-label="닫기">✕</button></div>
+      <div class="kick-who"><b>${esc(nm(x))}</b> 님 · ${away ? "연결 끊김" : "접속 중"}${inG ? " · 경기 참가 중" : ""}<br>
+      <span class="muted">내보내면 이 방에 다시 못 들어와요. ${inG ? "진행 중인 경기에서도 빠지고, 남은 사람끼리 이어서 해요." : ""}</span></div>
+      <button class="btn danger" data-kick="${x}">내보내기</button>
+      ${bans.length ? `<p class="muted">내보낸 사람</p><div class="ban-list">${bans.map(y => `<div class="ban-row"><span>${esc(nm(y))}</span><button data-unban="${y}">다시 받기</button></div>`).join("")}</div>` : ""}
+      <button class="btn sub" data-close>취소</button>`);
+  });
 
   // ── 온라인 준비 확인 ──
   if (window.mqtt) netMsg("방을 만들고 위에 뜨는 코드를 친구들에게 알려 주세요.");
