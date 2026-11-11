@@ -39,6 +39,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--s);outline-offs
 .top-r{display:flex;gap:6px;align-items:center}
 .chip{background:rgba(0,0,0,.22);color:#fff;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700}
 .chip.code{font-family:var(--f-call);font-size:20px;letter-spacing:.12em;padding:4px 12px}
+.chip.conn{font-size:12px;padding:6px 10px}
+.chip.conn.ok{color:#9ff0b9}
+.chip.conn.bad{color:#ffd27a;animation:blink 1s step-end infinite}
 .icon-btn{background:rgba(0,0,0,.22);color:#fff;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:15px}
 
 /* 카드 */
@@ -198,6 +201,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
   <div class="top">
     <div class="logo"><div class="ball mini"></div>숫자야구</div>
     <div class="top-r">
+      <span class="chip conn" id="connChip" hidden></span>
       <span class="chip code" id="codeChip" hidden></span>
       <button class="icon-btn" id="btnSound" aria-label="소리 켜기/끄기">♪</button>
       <button class="icon-btn" id="btnLeave" aria-label="나가기" hidden>✕</button>
@@ -446,57 +450,127 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
 
   /* ── 네트워크: PeerJS(브라우저끼리 직접 연결) ──
      방장 브라우저가 "nb4s-코드" 이름으로 대기하고, 친구들은 거기에 붙는다.
-     각자 자기 상태를 방장에게 보내고, 방장이 모두의 상태를 묶어 다시 뿌린다. */
-  const net = { peer: null, host: false, conns: new Map(), pres: {}, hostConn: null };
+     각자 자기 상태를 방장에게 보내고, 방장이 모두의 상태를 묶어 다시 뿌린다.
+     폰은 카톡 등으로 넘어가면 숨은 브라우저의 연결을 끊는다(2026-11-11 실사용: 3번째 친구에게
+     코드 보내러 간 사이 방이 터짐). 그래서 끊겨도 저절로 다시 붙는다:
+       - 4초마다 서로 신호(심장박동). 12초 넘게 소식 없으면 끊긴 걸로 보고 다시 연결
+       - 화면으로 돌아오면(visibilitychange) 바로 확인·재연결
+       - 상태(비밀 숫자·던진 공·판정)는 각자 폰에 저장돼 있어 다시 붙으면 그대로 이어진다 */
+  const net = { peer: null, host: false, code: null, conns: new Map(), pres: {}, seenAt: {}, hostConn: null,
+                lastAll: 0, busy: false, live: false, timer: null, lastErr: "" };
+  window.__nbNet = net;   // 시험용
   const netMsg = (t, warn) => { $("netNote").textContent = t; $("netNote").className = "muted" + (warn ? " warn" : ""); };
   let roomNote = "";
-  function netStart(c, asHost){
+  const HB = 4000, STALE = 12000, DROP = 25000;
+
+  function setLive(on){
+    if (net.live === on) return;
+    net.live = on;
+    const el = $("connChip");
+    el.hidden = mode !== "online";
+    el.textContent = on ? "●" : "재연결…";
+    el.title = on ? "연결됨" : "다시 연결 중";
+    el.className = "chip conn" + (on ? " ok" : " bad");
+  }
+
+  // 방장: 이름을 걸고 대기. 실패하면 이유를 reject
+  function hostOpen(c){
     return new Promise((resolve, reject) => {
-      const id = "nb4s-" + c;
       let done = false;
       const fin = e => { if (done) return; done = true; e ? reject(e) : resolve(); };
       setTimeout(() => fin({ type: "timeout" }), 15000);
-      if (asHost){
-        const p = new Peer(id); net.peer = p; net.host = true;
-        p.on("open", () => fin());
-        p.on("connection", conn => {
-          conn.on("data", d => {
-            if (d && d.t === "p" && d.p && typeof d.p.pid === "string"){ net.conns.set(conn.peer, conn); net.pres[conn.peer] = d.p; relay(); }
-          });
-          conn.on("close", () => { net.conns.delete(conn.peer); delete net.pres[conn.peer]; relay(); });
+      const p = new Peer("nb4s-" + c); net.peer = p; net.host = true;
+      p.on("open", () => { fin(); setLive(true); });
+      p.on("connection", conn => {
+        conn.on("data", d => {
+          if (!(d && d.t === "p" && d.p && typeof d.p.pid === "string")) return;
+          const k = d.p.pid;                       // 다시 붙으면 연결 id 가 바뀌므로 사람(pid) 기준으로 묶는다
+          net.conns.set(conn.peer, conn); net.seenAt[k] = Date.now();
+          const before = JSON.stringify(net.pres[k] || null), now = JSON.stringify(d.p);
+          net.pres[k] = d.p;
+          if (before !== now) relay();
         });
-        p.on("disconnected", () => { try { p.reconnect(); } catch {} });
-        p.on("error", e => fin(e));
-      } else {
-        const p = new Peer(); net.peer = p; net.host = false;
-        p.on("open", () => {
-          const conn = p.connect(id, { reliable: true }); net.hostConn = conn;
-          conn.on("open", () => { fin(); push(); });
-          conn.on("data", d => {
-            if (d && d.t === "all" && Array.isArray(d.list)){
-              peers = d.list.filter(x => x && typeof x.pid === "string" && x.pid !== pid); sync();
-            }
-          });
-          conn.on("close", () => { if (mode === "online"){ roomNote = "방장과 연결이 끊겼어요. ✕ 누르고 같은 코드로 다시 들어오면 이어져요."; show(); } });
-        });
-        p.on("error", e => { if (!done) fin(e); else if (mode === "online"){ roomNote = "연결 오류가 났어요. ✕ 누르고 다시 들어와 주세요."; show(); } });
-      }
+        conn.on("close", () => { net.conns.delete(conn.peer); });   // 상태는 DROP 동안 남겨 둔다(잠깐 끊긴 친구)
+        conn.on("error", () => {});
+      });
+      p.on("disconnected", () => { setLive(false); setTimeout(() => { try { if (!p.destroyed) p.reconnect(); } catch {} }, 1000); });
+      p.on("open", () => setLive(true));
+      p.on("error", e => { net.lastErr = e && e.type || ""; fin(e); });
     });
   }
+
+  // 친구: 방장에게 붙는다. 첫 연결은 결과를 돌려주고, 이후 끊기면 watchdog 이 다시 부른다
+  function guestOpen(c){
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const fin = e => { if (done) return; done = true; e ? reject(e) : resolve(); };
+      setTimeout(() => fin({ type: "timeout" }), 15000);
+      try { if (net.peer) net.peer.destroy(); } catch {}
+      const p = new Peer(); net.peer = p; net.host = false;
+      p.on("open", () => {
+        const conn = p.connect("nb4s-" + c, { reliable: true }); net.hostConn = conn;
+        conn.on("open", () => { net.lastAll = Date.now(); fin(); setLive(true); push(); });
+        conn.on("data", d => {
+          if (d && d.t === "all" && Array.isArray(d.list)){
+            net.lastAll = Date.now(); setLive(true);
+            const list = d.list.filter(x => x && typeof x.pid === "string" && x.pid !== pid);
+            const changed = JSON.stringify(list) !== JSON.stringify(peers);
+            peers = list;
+            if (changed) sync();
+          }
+        });
+        conn.on("close", () => { if (net.hostConn === conn){ setLive(false); } });
+        conn.on("error", () => {});
+      });
+      p.on("error", e => { net.lastErr = e && e.type || ""; fin(e); });
+    });
+  }
+
+  // 4초마다: 심장박동 보내기 + 끊긴 연결 다시 잇기
+  async function heal(){
+    if (mode !== "online" || net.busy) return;
+    const now = Date.now();
+    if (net.host){
+      broadcast();
+      let gone = false;
+      for (const k of Object.keys(net.pres)) if (now - (net.seenAt[k] || 0) > DROP){ delete net.pres[k]; gone = true; }
+      if (gone) relay();
+      const p = net.peer;
+      if (!p || p.destroyed){                        // 폰이 연결을 통째로 죽였으면 같은 이름으로 다시 연다
+        net.busy = true; setLive(false);
+        try { await hostOpen(net.code); } catch {}
+        net.busy = false;
+      } else if (p.disconnected){ setLive(false); try { p.reconnect(); } catch {} }
+    } else {
+      push();
+      const ok = net.hostConn && net.hostConn.open && now - net.lastAll < STALE;
+      if (!ok){
+        setLive(false);
+        net.busy = true;
+        try { await guestOpen(net.code); } catch {}
+        net.busy = false;
+      }
+    }
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) heal(); });
+  window.addEventListener("online", () => heal());
+
   function netStop(){
+    clearInterval(net.timer); net.timer = null;
     try { if (net.peer) net.peer.destroy(); } catch {}
-    net.peer = null; net.hostConn = null; net.conns = new Map(); net.pres = {};
+    net.peer = null; net.hostConn = null; net.conns = new Map(); net.pres = {}; net.seenAt = {}; net.live = false;
+    $("connChip").hidden = true;
   }
   const myPres = () => ({ pid, nick: names[pid], host: net.host, game: st.game, set: !!st.secret, guesses: st.guesses, replies: st.replies });
   function broadcast(){
     const list = [{ v: 2, ...myPres() }, ...Object.values(net.pres)];
-    for (const c of net.conns.values()) if (c.open) c.send({ t: "all", list });
+    for (const c of net.conns.values()) if (c.open) { try { c.send({ t: "all", list }); } catch {} }
   }
   function relay(){ broadcast(); peers = Object.values(net.pres).filter(x => x.pid !== pid); sync(); }
   function push(){
     if (!net.peer || !st) return;
     if (net.host) broadcast();
-    else if (net.hostConn && net.hostConn.open) net.hostConn.send({ t: "p", p: { v: 2, ...myPres() } });
+    else if (net.hostConn && net.hostConn.open){ try { net.hostConn.send({ t: "p", p: { v: 2, ...myPres() } }); } catch {} }
   }
 
   async function enterRoom(c, resumePid, asHost){
@@ -506,29 +580,32 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = true);
     netMsg(asHost ? "방 여는 중…" : "방에 들어가는 중…");
     let ok = false;
-    for (let tries = 0; tries < (asHost ? 5 : 1) && !ok; tries++){
-      try { await netStart(c, asHost); ok = true; }
+    for (let tries = 0; tries < (asHost ? 6 : 3) && !ok; tries++){
+      try { await (asHost ? hostOpen(c) : guestOpen(c)); ok = true; }
       catch (e){
         netStop();
-        if (asHost && e && e.type === "unavailable-id"){
+        const t = e && e.type;
+        if (asHost && t === "unavailable-id"){
           if (resumePid){ netMsg("방을 다시 여는 중… 잠시만요"); await new Promise(r => setTimeout(r, 3000)); }
           else c = rid(4);
+        } else if (!asHost && t === "peer-unavailable"){
+          netMsg("그 코드의 방이 없어요. 코드를 확인하거나, 방장 화면이 켜져 있는지 물어보세요.", true); break;
         } else {
-          netMsg(e && e.type === "peer-unavailable" ? "그 코드의 방이 없어요. 코드를 확인하거나 방장에게 방이 열려 있는지 물어보세요."
-            : "연결하지 못했어요. 잠시 뒤 다시 눌러 주세요.", true);
-          break;
+          netMsg(`연결 재시도 중… (${t || "알 수 없음"})`); await new Promise(r => setTimeout(r, 1500));
         }
       }
     }
     ["btnCreate","btnJoin","btnResume"].forEach(id => $(id).disabled = false);
-    if (!ok){ if (asHost) netMsg("방을 열지 못했어요. 잠시 뒤 다시 눌러 주세요.", true); return; }
+    if (!ok){ if (!$("netNote").classList.contains("warn")) netMsg(`연결하지 못했어요 (${net.lastErr || "시간 초과"}). 잠시 뒤 다시 눌러 주세요.`, true); return; }
     netMsg("");
-    code = c; pid = resumePid || rid(8);
+    code = c; net.code = c; pid = resumePid || rid(8);
     st = LS.get(`nb4:${code}:${pid}`) || { game: null, secret: "", guesses: [], replies: {} };
     names[pid] = nick();
     mode = "online"; peers = []; entry = ""; roomNote = "";
     seen.gid = null;
     LS.set("nb4:last2", { code, pid, host: asHost }); save();
+    net.live = false; setLive(true);
+    clearInterval(net.timer); net.timer = setInterval(heal, HB);
     push(); sync();
   }
 
@@ -619,6 +696,7 @@ canvas#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-in
     $("game").hidden = mode === "lobby";
     $("btnLeave").hidden = mode === "lobby";
     $("codeChip").hidden = mode !== "online";
+    $("connChip").hidden = mode !== "online";
     if (mode === "lobby"){ renderDock(false); return; }
     if (mode === "solo") return showSolo();
 
